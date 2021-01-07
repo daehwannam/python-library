@@ -1,0 +1,3 @@
+[submodule "dhnamutil/pylib/torch_util/rnn_util"]
+	path = dhnamutil/pylib/torch_util/rnn_util
+	url = https://github.com/daehwannam/pytorch-rnn-util.git

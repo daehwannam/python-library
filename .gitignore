@@ -1,0 +1,15 @@
+# ignore some directories
+checkpoint/*
+src_*/
+
+# special file names
+_cp_*
+_old_*
+_tmp_*
+
+# emacs temporary files
+*~
+\#*#
+
+# python temporary file
+*.pyc
