@@ -1,6 +1,5 @@
 
-My programming language utilities
-
-** Programming languages
+** Introduction
+   This repository include my utilities for the following programming languages:
    - Python
    - Hy
