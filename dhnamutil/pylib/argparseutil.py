@@ -7,3 +7,10 @@ def parse_bool(text):
         return False
     else:
         raise Exception("{} is not allowed as a bool value".format(text))
+
+
+def parse_num(s):
+    if s == 'inf':
+        return float('inf')
+    else:
+        return int(s)
