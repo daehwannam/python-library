@@ -150,7 +150,7 @@ def python_load(path, *args):
     return eval(read_file(path), *args)
 
 
-def make_logger(name, log_file_path, to_stdout=True, overwriting=False, format_str=None):
+def make_logger(name, log_file_path=None, to_stdout=True, overwriting=False, format_str=None):
     if format_str is None:
         log_formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -159,10 +159,11 @@ def make_logger(name, log_file_path, to_stdout=True, overwriting=False, format_s
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
-    mode = 'w' if overwriting else 'a'
-    file_handler = logging.FileHandler("{0}".format(log_file_path), mode=mode)
-    file_handler.setFormatter(log_formatter)
-    logger.addHandler(file_handler)
+    if log_file_path is not None:
+        mode = 'w' if overwriting else 'a'
+        file_handler = logging.FileHandler("{0}".format(log_file_path), mode=mode)
+        file_handler.setFormatter(log_formatter)
+        logger.addHandler(file_handler)
 
     if to_stdout:
         console_handler = logging.StreamHandler(sys.stdout)
