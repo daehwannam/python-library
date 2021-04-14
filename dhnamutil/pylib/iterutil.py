@@ -121,9 +121,18 @@ def index(seq, target, key=lambda x: x, default=None):
         return default
 
 
-def any_value(seq):
+def any_value(seq, is_valid=bool):
     for elem in seq:
-        if elem:
+        if is_valid(elem):
             return elem
     else:
         return elem  # last value
+
+
+def is_iterable(it):
+    # https://stackoverflow.com/questions/1952464/in-python-how-do-i-determine-if-an-object-is-iterable
+    try:
+        (x for x in it)
+    except TypeError:
+        return False
+    return True

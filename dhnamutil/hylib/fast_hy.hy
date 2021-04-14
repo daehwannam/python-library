@@ -83,7 +83,6 @@
   "it's same with common lisp's let"
 
   (setv [var-value-list #* body-exprs] dependents)
-
   (assert (= (len body-exprs) 1) "More than 1 expression is not allowed yet")
   (setv body-expr (first body-exprs))
 
@@ -137,7 +136,7 @@
 
 (defn accumulate-literal [expr components]
   (setv value
-        (cond [(instance? hy.models.HyString expr) (string expr)]
+        (cond [(instance? hy.models.HyString expr) (str expr)]
               [(instance? hy.models.HyInteger expr) (int expr)]
               [(instance? hy.models.HyFloat expr) (float expr)]
               ;; [(hasattr hy.core.shadow (mangle expr)) f"hy.core.shadow.{(mangle expr)}"]

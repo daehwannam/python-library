@@ -1,6 +1,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from . import rnn_util
 
@@ -154,28 +155,26 @@ class BilinearFlat(nn.Bilinear):
         if len(input1_size) == len(input2_size):
             super_output = super().forward(input1, input2)
         elif len(input1_size) < len(input2_size):
-            new_input1 = self.repeat_smaller_tensor(input1, input2)
+            new_input1 = self.expand_smaller_tensor(input1, input2)
             super_output = super().forward(new_input1, input2)
         else:
             assert len(input1_size) > len(input2_size)
-            new_input2 = self.repeat_smaller_tensor(input2, input1)
+            new_input2 = self.expand_smaller_tensor(input2, input1)
             super_output = super().forward(input1, new_input2)
 
         return super_output.squeeze(-1)
 
-    def repeat_smaller_tensor(self, smaller_tensor, bigger_tensor):
+    def expand_smaller_tensor(self, smaller_tensor, bigger_tensor):
         smaller_size = smaller_tensor.size()
         bigger_size = bigger_tensor.size()
 
         gap_size = self.compare_sizes(smaller_size, bigger_size)
-        multiplier = 1
-        for dim in gap_size:
-            multiplier *= dim
+        # multiplier = 1
+        # for dim in gap_size:
+        #     multiplier *= dim
 
-        try:
-            return smaller_tensor.view(-1).repeat(multiplier).view(gap_size + smaller_size)
-        except RuntimeError:
-            breakpoint()
+        # return smaller_tensor.view(-1).repeat(multiplier).view(gap_size + smaller_size)
+        return smaller_tensor.view(-1).expand(gap_size + smaller_size)
 
     def compare_sizes(self, size1, size2):
         assert len(size1) < len(size2)
@@ -208,3 +207,25 @@ def residual(func, x):
 def max_over_index(tensor, index):
     max_values, max_indices = tensor.max(index)
     return max_values
+
+
+def masked_softmax(input, mask=None, *args, **kwargs):
+    if mask is None:
+        mask = torch.ones(input.shape, device=input.device)
+    elif isinstance(mask, (list, tuple)):
+        mask = torch.tensor(mask, device=input.device)
+
+    return F.softmax(input.masked_fill((1 - mask.int()).bool(),
+                                       float('-inf')),
+                     *args, **kwargs)
+
+
+def masked_log_softmax(input, mask=None, *args, **kwargs):
+    if mask is None:
+        mask = torch.ones(input.shape, device=input.device)
+    elif isinstance(mask, (list, tuple)):
+        mask = torch.tensor(mask, device=input.device)
+
+    return F.log_softmax(input.masked_fill((1 - mask.int()).bool(),
+                                           float('-inf')),
+                         *args, **kwargs)

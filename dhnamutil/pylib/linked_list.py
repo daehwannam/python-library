@@ -41,10 +41,10 @@ class LinkedList(tuple):
         return self.klass((el, self))
 
     def car(self):
-        return self[0] if self is not self.klass.nil else self
+        return super(LinkedList, self).__getitem__(0) if self is not self.klass.nil else self
 
     def cdr(self):
-        return self[1] if self is not self.klass.nil else self
+        return super(LinkedList, self).__getitem__(1) if self is not self.klass.nil else self
 
     def nth(self, n):
         lst = self
@@ -133,12 +133,15 @@ class AssociationList(LinkedList):
         pair = self.find(attr, key=lambda pair: key(pair[0])).car()
         if pair == self.klass.nil:
             if no_default:
-                raise Exception("Cannot find the correspodning value")
+                raise Exception("Cannot find the correspodning key")
             elif defaultfunc is not None:
                 return defaultfunc()
             else:
                 return defaultvalue
         return pair[1]
+
+    def __getitem__(self, key):
+        return self.get(key, no_default=True)
 
     def get_values(self, attr_list, key=lambda x: x, defaultvalue=None, defaultfunc=None, no_default=False):
         return iterutil.get_values_from_pairs(
