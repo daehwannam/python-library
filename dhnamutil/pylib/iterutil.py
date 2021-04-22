@@ -1,4 +1,6 @@
 
+import itertools
+
 
 def dicts2pairs(*args):
     """dictionaries to key-sequence pairs"""
@@ -129,6 +131,14 @@ def any_value(seq, is_valid=bool):
         return elem  # last value
 
 
+def is_not_none(value):
+    return value is not None
+
+
+def any_not_none(seq):
+    return any_value(seq, is_not_none)
+
+
 def is_iterable(it):
     # https://stackoverflow.com/questions/1952464/in-python-how-do-i-determine-if-an-object-is-iterable
     try:
@@ -136,3 +146,23 @@ def is_iterable(it):
     except TypeError:
         return False
     return True
+
+
+def erange(*args):
+    'extended range'
+
+    start = 0
+    step = 1
+
+    if len(args) == 1:
+        [stop] = args
+    elif len(args) == 2:
+        start, stop = args
+    else:
+        assert len(args) == 3
+        start, stop, step = args
+
+    if stop == float('inf'):
+        return itertools.count(start, step)
+    else:
+        return range(start, stop, step)

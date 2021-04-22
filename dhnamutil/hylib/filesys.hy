@@ -9,10 +9,10 @@
 
 
 (defn hy-read [path]
-  (read-str (pyfilesys.read-file path)))
+  (read-str (pyfilesys.read-text path)))
 
 (defn hy-load [path]
-  (eval (read-str (pyfilesys.read-file path))))
+  (eval (read-str (pyfilesys.read-text path))))
 
 
 (defmacro get-current-file-path []

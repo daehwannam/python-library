@@ -53,8 +53,11 @@ def open_with_mkdirs(path, *args):
     return open(path, *args)
 
 
-def mkdirs_unless_exist(path):
-    dir_path = os.path.dirname(path)
+def mkdirs_unless_exist(path, to_dir=False):
+    if to_dir:
+        dir_path = os.path.dirname(os.path.join(path, ''))
+    else:
+        dir_path = os.path.dirname(path)
     if not os.path.isdir(dir_path):
         os.makedirs(dir_path)
 
@@ -118,18 +121,31 @@ def pickle_load(path, **kargs):
         return pickle.load(f, **kargs)
 
 
-def read_file(path):
-    with open(path) as f:
-        return f.read()
-
-
-def write_file(path, text):
+def write_text(path, text):
     with open(path, 'w') as f:
         return f.write(text)
 
 
+def read_text(path):
+    with open(path) as f:
+        return f.read()
+
+
+def write_lines(path, lines):
+    with open(path, 'w') as f:
+        for line_num, line in enumerate(lines, 1):
+            f.write(line)
+            if line_num != len(lines):
+                f.write('\n')
+
+
+def read_lines(path):
+    with open(path) as f:
+        return f.readlines()
+
+
 def python_save(obj, path, repr=repr):
-    return write_file(path, repr(obj))
+    return write_text(path, repr(obj))
 
 
 def python_save_pretty(obj, path, **kargs):
@@ -147,7 +163,7 @@ def python_dump_pretty(obj, fp, **kargs):
 
 def python_load(path, *args):
     assert len(args) <= 2  # for globals and locals
-    return eval(read_file(path), *args)
+    return eval(read_text(path), *args)
 
 
 def make_logger(name, log_file_path=None, to_stdout=True, overwriting=False, format_str=None):

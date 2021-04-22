@@ -5,14 +5,18 @@ from hissp.compiler import readerless
 from hissp.reader import Lissp
 
 
+def lissp_to_hissp(lissp_expr):
+    lissp_parser = Lissp()  # A lissp object should not be shared by multiple threads
+    return next(lissp_parser.reads(lissp_expr))
+
+
 def eval_lissp(code, ns=None):
     if ns is None:
         ns = inspect.stack()[1][0].f_globals
         # merging globals and locals could be a better choice
         # >>> inspect.stack()[1][0].f_locals
 
-    lissp_parser = Lissp()  # A lissp object should not be shared by multiple threads
-    hissp_form = next(lissp_parser.reads(code))
+    hissp_form = lissp_to_hissp(code)
     py_code = readerless(hissp_form, ns=ns)
     return eval(py_code, ns)
 
