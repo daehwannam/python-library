@@ -74,7 +74,10 @@ class TreeStructure:
         self.terminal = terminal
         self.prev = prev
 
-    def __repr__(self, lisp_style=True, enable_prev=True):
+    def __repr__(self):
+        lisp_style = True
+        enable_prev = True
+
         num_reduces = 0
         tree = self
         while not tree.is_closed_root():
