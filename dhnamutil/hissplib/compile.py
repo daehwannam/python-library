@@ -6,7 +6,7 @@ from hissp.reader import Lissp
 
 
 def lissp_to_hissp(lissp_expr):
-    lissp_parser = Lissp()  # A lissp object should not be shared by multiple threads
+    lissp_parser = Lissp()  # A Lissp object should not be shared by multiple threads
     return next(lissp_parser.reads(lissp_expr))
 
 

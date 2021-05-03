@@ -56,12 +56,15 @@ div = div_two
 
 
 # make dashed names as alias 
-for name, obj in tuple(globals().items()):
+for name, obj in globals().items():
     if '_' in name and not name.startswith('_') and not name.endswith('_'):
         globals().__setitem__(munge(name.replace('_', '-')), obj)
 
+# allowing operator symbols
+op_name_func_pairs = [['+', add],
+                      ['-', sub],
+                      ['*', mul],
+                      ['/', div]]
 
-globals().__setitem__(munge('+'), add)
-globals().__setitem__(munge('-'), sub)
-globals().__setitem__(munge('*'), mul)
-globals().__setitem__(munge('/'), div)
+for op_name, func in op_name_func_pairs:
+    globals().__setitem__(munge(op_name), func)
