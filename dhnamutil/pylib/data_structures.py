@@ -2,8 +2,11 @@
 from functools import reduce
 import re
 import heapq
+from collections import deque
+
 from . import min_max_heap
 from . import algorithms
+from .structutil import namedlist
 
 
 class HeapPQ:
@@ -41,6 +44,98 @@ class HeapPQ:
 
     def __len__(self):
         return len(self.heap)
+
+
+class LRUCache:
+    Unit = namedlist('Unit', 'key, value, valid')
+
+    def __init__(self, max_size):
+        self.q = deque()
+        self.unit_dict = {}
+        self.max_size = max_size
+        self.size = 0
+
+    def update(self, key, value):
+        if key in self.unit_dict:
+            self.unit_dict[key].valid = False
+        elif self.size < self.max_size:
+            self.size += 1
+        else:
+            lr_unit = self.q.popleft()
+            while not lr_unit.valid:
+                lr_unit = self.q.popleft()
+            del self.unit_dict[lr_unit.key]
+
+        unit = self.Unit(key, value, True)
+        self.q.append(unit)
+        self.unit_dict[key] = unit
+
+        assert len(self.unit_dict) <= self.max_size
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __setitem__(self, key, value):
+        self.update(key, value)
+
+    def __getitem__(self, key):
+        return self.unit_dict[key].value
+
+    def keys(self):
+        return self.unit_dict.keys()
+
+    def items(self):
+        value_idx = self.Unit.get_attr_idx('value')
+        for key, unit in self.unit_dict.items():
+            yield key, unit[value_idx]
+
+    def values(self):
+        value_idx = self.Unit.get_attr_idx('value')
+        for unit in self.unit_dict.values():
+            yield unit[value_idx]
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(max_size={self.max_size}, {repr(dict(self.items()))})'
+
+
+class PriorityDict:
+    Unit = namedlist('Unit', 'key, value, valid')
+
+    def __init__(self):
+        self.pq = HeapPQ()
+        self.unit_dict = {}
+
+    def update(self, priority, key, value):
+        unit = PriorityDict.Unit(key, value, True)
+        self.pq.push(priority, unit)
+
+        existing_unit = self.unit_dict.get(key)
+        if existing_unit is not None:
+            unit.valid = False
+        self.unit_dict[key] = unit
+
+    def pop(self):
+        unit = self.pq.pop()
+        while not unit.valid:
+            unit = self.pq.pop()
+        del self.unit_dict[unit.key]
+        return unit.value
+
+    def __iter__(self):
+        return self.keys()
+
+    def keys(self):
+        return unit_dict.keys()
+
+    def items(self):
+        value_idx = unit.get_attr_idx('value')
+        for key, unit in unit_dict.items():
+            yield key, unit[value_idx]
+
+    def values(self):
+        value_idx = unit.get_attr_idx('value')
+        for unit in unit_dict.values():
+            yield unit[value_idx]
 
 
 class LimitedPQ:

@@ -87,7 +87,7 @@ class TreeStructure:
         representation = self.repr_opened(
             lisp_style=lisp_style, enable_prev=enable_prev)
 
-        # 'representation' may have a trailing whitespace char, so '.strip' is used 
+        # 'representation' may have a trailing whitespace char, so '.strip' is used
         return representation.strip() + "}" * num_reduces
 
     def repr_opened(self, lisp_style, enable_prev, symbol_repr=False):
@@ -241,3 +241,92 @@ def camel_to_symbol(name):
 def camel_to_snake(name):
     s1 = first_cap_re.sub(r'\1-\2', name)
     return all_cap_re.sub(r'\1-\2', s1).lower()
+
+
+class abidict(dict):
+    'Asymmetry bidirectional dictionary'
+
+    def __init__(self, *args, **kwargs):
+        super(abidict, self).__init__(*args, **kwargs)
+        self.inverse = {}
+        for key, value in self.items():
+            self.inverse.setdefault(value, set()).add(key)
+
+    def __setitem__(self, key, value):
+        if key in self:
+            self._del_inverse_item(key)
+        super(abidict, self).__setitem__(key, value)
+        self.inverse.setdefault(value, set()).add(key)
+
+    def __delitem__(self, key):
+        self._del_inverse_item(key)
+        super(abidict, self).__delitem__(key)
+
+    def _del_inverse_item(self, key):
+        value = self[key]
+        self.inverse[value].remove(key)
+        if not self.inverse[value]:
+            del self.inverse[value]
+
+
+sep_pattern = re.compile('[ ,]+')
+
+def namedlist(typename, field_names):
+    if not isinstance(field_names, (list, tuple)):
+        field_names = sep_pattern.split(field_names)
+    name_to_idx_dict = dict(map(reversed, enumerate(field_names)))
+
+    class NamedList(list):
+        def __init__(self, *args, **kwargs):
+            assert (len(args) + len(kwargs)) == len(field_names)
+            super(NamedList, self).__init__([None] * len(field_names))
+            for idx in range(len(args)):
+                self[idx] = args[idx]
+            for k, v in kwargs.items():
+                self[name_to_idx_dict[k]] = v
+
+        def __getattr__(self, key):
+            if key in name_to_idx_dict:
+                return self[name_to_idx_dict[key]]
+            else:
+                return super(NamedList, self).__getattr__(key)
+
+        def __setattr__(self, key, value):
+            if key in name_to_idx_dict:
+                self[name_to_idx_dict[key]] = value
+            else:
+                # super(NamedList, self).__setattr__(key, value)
+                raise AttributeError("'NamedList' object doesn't allow new attributes.")
+
+        def __repr__(self):
+            return ''.join(
+                [f'{typename}',
+                 '(',
+                 ', '.join(f'{name}={self[name_to_idx_dict[name]]}' for name in field_names),
+                 ')'])
+
+        def append(self, *args, **kwargs):
+            raise Exception('This method is not used')
+
+        def extend(self, *args, **kwargs):
+            raise Exception('This method is not used')
+
+        @classmethod
+        def get_attr_idx(cls, attr):
+            return name_to_idx_dict[attr]
+
+    NamedList.__name__ = typename
+    NamedList.__qualname__ = typename
+    return NamedList
+
+    # A(x=1, y=2, z=3)
+
+
+def test_namedlist():
+    A = namedlist('A', 'x,    y    z')
+    a = A(1, z=3, y=2)
+    print(a.x)
+    a.x = 10
+    print(a[0])
+    print(A)
+    print(a)

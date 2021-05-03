@@ -1,5 +1,8 @@
 
 import random
+from . import iterutil
+from .structutil import AttrDict
+from collections import namedtuple
 
 
 def quickselect(items, item_index, key=lambda x: x):
@@ -51,3 +54,106 @@ def quickselect(items, item_index, key=lambda x: x):
         raise IndexError()
 
     return select(items, 0, len(items) - 1, item_index)
+
+
+# Sparse vector functions
+def vec_increment(d1, scale, d2):
+    """
+    Implements d1 += scale * d2 for sparse vectors.
+    @param dict d1: the feature vector which is mutated.
+    @param float scale
+    @param dict d2: a feature vector.
+    """
+    for f, v in list(d2.items()):
+        d1[f] = d1.get(f, 0) + v * scale
+
+
+def vec_sum(vectors):
+    total = {}
+    for vec in vectors:
+        vec_increment(total, 1., vec)
+    return total
+
+
+def vec_div(vec, scalar):
+    return {feature: value / scalar for feature, value in vec.items()}
+
+
+
+def sparse_kmeans(examples, K, max_num_iters=float('inf')):
+    '''
+    examples: list of examples, each example is a feature-to-number dict representing a sparse vector.
+    K: number of desired clusters. Assume that 0 < K <= |examples|.
+    max_num_iters: maximum number of iterations to run for (you should terminate early if the algorithm converges).
+    Return: (length K list of cluster centroids,
+            list of assignments, (i.e. if examples[i] belongs to centers[j], then assignments[i] = j)
+            final reconstruction loss)
+    '''
+    centers = random.sample(examples, K)
+    assignments = None
+
+    # PRE-COMPUTING NORMS =============================================================
+    def get_squared_norms():
+        return [sum(value ** 2 for value in center.values()) for center in centers]
+    center_squared_norms = get_squared_norms()
+
+    def get_l2_loss(cluster_id, example):
+        l2_loss = center_squared_norms[cluster_id]
+        center = centers[cluster_id]
+        for key, value in example.items():
+            center_value = center.get(key, 0)
+            l2_loss += value ** 2 - 2 * value * center_value
+        return l2_loss
+    # ============================================================= PRE-COMPUTING NORMS
+
+    for iter_cnt in iterutil.erange(max_num_iters):
+        prev_assignments = assignments
+        assignments = [0] * len(examples)
+
+        # update assignments
+        for example_id, example in enumerate(examples):
+            assignments[example_id] = min(range(K),
+                                          key=lambda x: get_l2_loss(x, example))
+        # terminate when converging
+        if prev_assignments == assignments:
+            print('k-means converged')
+            break
+
+        # update centers
+        clusters = [[] for _ in range(K)]
+        for example_id, example in enumerate(examples):
+            cluster_id = assignments[example_id]
+            clusters[cluster_id].append(example)
+
+        centers = [vec_div(vec_sum(cluster), len(cluster))
+                   for cluster in clusters]
+
+        # PRE-COMPUTING NORMS =============================================================
+        center_squared_norms = get_squared_norms()
+        # ============================================================= PRE-COMPUTING NORMS
+
+    else:
+        print('max iteration')
+
+    loss = 0
+    for example_id, example in enumerate(examples):
+        loss += get_l2_loss(assignments[example_id], example)
+
+    result = AttrDict(centers=centers,
+                      assignments=assignments,
+                      loss=loss)
+    return result
+
+
+def test_sparse_kmeans():
+    random.seed(42)
+    x1 = dict(f1=0, f2=0)         # x1 => (0, 0)
+    x2 = dict(f1=0, f2=1)         # x2 => (0, 1)
+    x3 = dict(f1=0, f2=2)         # x3 => (0, 2)
+    x4 = dict(f1=0, f2=3)         # x4 => (0, 3)
+    x5 = dict(f1=0, f2=4)         # x5 => (0, 4)
+    x6 = dict(f1=0, f2=5)         # x6 => (0, 5)
+    examples = [x1, x2, x3, x4, x5, x6]
+    result = sparse_kmeans(examples, 2, max_num_iters=10)
+    print(result.centers, result.assignments, result.loss, sep='\n')
+
