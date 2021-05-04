@@ -166,3 +166,13 @@ def erange(*args):
         return itertools.count(start, step)
     else:
         return range(start, stop, step)
+
+
+def nest(first, *others):
+    if others:
+        for first_item in first:
+            for other_items in nest(*others):
+                yield (first_item,) + other_items
+    else:
+        for first_item in first:
+            yield (first_item,)

@@ -1,5 +1,7 @@
 
 import random
+import math
+
 from . import iterutil
 from .structutil import AttrDict
 from collections import namedtuple
@@ -31,7 +33,7 @@ def quickselect(items, item_index, key=lambda x: x):
 
         # partition
         i = l
-        for j in range(l+1, r+1):
+        for j in range(l + 1, r + 1):
             if key(lst[j]) < key(lst[l]):
                 i += 1
                 lst[i], lst[j] = lst[j], lst[i]
@@ -43,9 +45,9 @@ def quickselect(items, item_index, key=lambda x: x):
         if index == i:
             return lst[i]
         elif index < i:
-            return select(lst, l, i-1, index)
+            return select(lst, l, i - 1, index)
         else:
-            return select(lst, i+1, r, index)
+            return select(lst, i + 1, r, index)
 
     if items is None or len(items) < 1:
         return None
@@ -79,6 +81,20 @@ def vec_div(vec, scalar):
     return {feature: value / scalar for feature, value in vec.items()}
 
 
+def vec_dot(vec1, vec2):
+    if len(vec2) < len(vec1):
+        vec1, vec2 = vec2, vec1
+    return sum(
+        v * vec2.get(k, 0)
+        for k, v in vec1.items())
+
+
+def vec_cosine(vec1, vec2):
+    denominator = math.sqrt(vec_dot(vec1, vec1) * vec_dot(vec2, vec2))
+    if denominator == 0:
+        return 0
+    return vec_dot(vec1, vec2) / denominator
+
 
 def sparse_kmeans(examples, K, max_num_iters=float('inf')):
     '''
@@ -97,9 +113,9 @@ def sparse_kmeans(examples, K, max_num_iters=float('inf')):
         return [sum(value ** 2 for value in center.values()) for center in centers]
     center_squared_norms = get_squared_norms()
 
-    def get_l2_loss(cluster_id, example):
-        l2_loss = center_squared_norms[cluster_id]
-        center = centers[cluster_id]
+    def get_l2_loss(cluster_idx, example):
+        l2_loss = center_squared_norms[cluster_idx]
+        center = centers[cluster_idx]
         for key, value in example.items():
             center_value = center.get(key, 0)
             l2_loss += value ** 2 - 2 * value * center_value
@@ -108,25 +124,25 @@ def sparse_kmeans(examples, K, max_num_iters=float('inf')):
 
     for iter_cnt in iterutil.erange(max_num_iters):
         prev_assignments = assignments
-        assignments = [0] * len(examples)
+        assignments = [None] * len(examples)
 
         # update assignments
-        for example_id, example in enumerate(examples):
-            assignments[example_id] = min(range(K),
-                                          key=lambda x: get_l2_loss(x, example))
+        for example_idx, example in enumerate(examples):
+            assignments[example_idx] = min(range(K),
+                                           key=lambda x: get_l2_loss(x, example))
         # terminate when converging
         if prev_assignments == assignments:
             print('k-means converged')
             break
 
         # update centers
-        clusters = [[] for _ in range(K)]
-        for example_id, example in enumerate(examples):
-            cluster_id = assignments[example_id]
-            clusters[cluster_id].append(example)
+        example_clusters = [[] for _ in range(K)]
+        for example_idx, example in enumerate(examples):
+            cluster_idx = assignments[example_idx]
+            example_clusters[cluster_idx].append(example)
 
-        centers = [vec_div(vec_sum(cluster), len(cluster))
-                   for cluster in clusters]
+        centers = [vec_div(vec_sum(example_cluster), len(example_cluster))
+                   for example_cluster in example_clusters]
 
         # PRE-COMPUTING NORMS =============================================================
         center_squared_norms = get_squared_norms()
@@ -135,12 +151,20 @@ def sparse_kmeans(examples, K, max_num_iters=float('inf')):
     else:
         print('max iteration')
 
-    loss = 0
-    for example_id, example in enumerate(examples):
-        loss += get_l2_loss(assignments[example_id], example)
+    # compute clusters
+    clusters = tuple(set() for _ in range(K))
+    for example_idx in range(len(examples)):
+        clusters[assignments[example_idx]].add(example_idx)
 
+    # compute loss
+    loss = 0
+    for example_idx, example in enumerate(examples):
+        loss += get_l2_loss(assignments[example_idx], example)
+
+    # result
     result = AttrDict(centers=centers,
                       assignments=assignments,
+                      clusters=clusters,
                       loss=loss)
     return result
 

@@ -271,6 +271,7 @@ class abidict(dict):
 
 sep_pattern = re.compile('[ ,]+')
 
+
 def namedlist(typename, field_names):
     if not isinstance(field_names, (list, tuple)):
         field_names = sep_pattern.split(field_names)

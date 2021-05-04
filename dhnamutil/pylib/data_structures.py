@@ -46,7 +46,42 @@ class HeapPQ:
         return len(self.heap)
 
 
-class LRUCache:
+class LRUSet:
+    Unit = namedlist('Unit', 'item, valid')
+
+    def __init__(self, max_size):
+        self.q = deque()
+        self.unit_dict = {}
+        self.max_size = max_size
+        self.size = 0
+
+    def add(self, item):
+        if item in self.unit_dict:
+            self.unit_dict[item].valid = False
+        elif self.size < self.max_size:
+            self.size += 1
+        else:
+            lr_unit = self.q.popleft()
+            while not lr_unit.valid:
+                lr_unit = self.q.popleft()
+            del self.unit_dict[lr_unit.item]
+
+        unit = self.Unit(item, True)
+        self.q.append(unit)
+        self.unit_dict[item] = unit
+
+        assert len(self.unit_dict) <= self.max_size
+
+    def __iter__(self):
+        value_idx = self.Unit.get_attr_idx('item')
+        for unit in self.unit_dict.values():
+            yield unit[value_idx]
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(max_size={self.max_size}, {repr(set(self))})'
+
+
+class LRUDict:
     Unit = namedlist('Unit', 'key, value, valid')
 
     def __init__(self, max_size):
