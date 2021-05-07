@@ -49,7 +49,7 @@ def mul(*args):
 
 
 def div_two(x, y):
-    return x - y
+    return x / y
 
 
 div = div_two
@@ -57,7 +57,7 @@ div = div_two
 
 # make dashed names as alias 
 for name, obj in tuple(globals().items()):
-    # without tuple in 'for' statement, dict is changed during loop, then RuntimeError occurs.
+    # without tuple wrapping globals(), globals() is changed during loop, then RuntimeError occurs.
     if '_' in name and not name.startswith('_') and not name.endswith('_'):
         globals().__setitem__(munge(name.replace('_', '-')), obj)
 

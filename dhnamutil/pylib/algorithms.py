@@ -132,7 +132,7 @@ def sparse_kmeans(examples, K, max_num_iters=float('inf')):
                                            key=lambda x: get_l2_loss(x, example))
         # terminate when converging
         if prev_assignments == assignments:
-            print('k-means converged')
+            # print('k-means converged')
             break
 
         # update centers
