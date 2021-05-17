@@ -90,7 +90,7 @@ class LRUDict:
         self.max_size = max_size
         self.size = 0
 
-    def update(self, key, value):
+    def update_kv(self, key, value):
         if key in self.unit_dict:
             self.unit_dict[key].valid = False
         elif self.size < self.max_size:
@@ -111,7 +111,7 @@ class LRUDict:
         return iter(self.keys())
 
     def __setitem__(self, key, value):
-        self.update(key, value)
+        self.update_kv(key, value)
 
     def __getitem__(self, key):
         return self.unit_dict[key].value
@@ -131,6 +131,59 @@ class LRUDict:
 
     def __repr__(self):
         return f'{self.__class__.__name__}(max_size={self.max_size}, {repr(dict(self.items()))})'
+
+
+class LIFOSet:
+    def __init__(self):
+        self.count_dict = {}
+        self.count = 0
+
+    def add(self, item):
+        self.count_dict[item] = self.count
+        self.count += 1
+
+    def __iter__(self):
+        for k, v in sorted(self.count_dict.items(), key=lambda x: - x[1]):
+            yield k
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({repr(set(self))})'
+
+
+class LIFODict:
+    def __init__(self):
+        self.count_dict = {}
+        self.value_dict = {}
+        self.count = 0
+
+    def update_kv(self, key, value):
+        self.count_dict[key] = self.count
+        self.count += 1
+        self.value_dict[key] = value
+
+    def __setitem__(self, key, value):
+        self.update_kv(key, value)
+
+    def __getitem__(self, key):
+        return self.value_dict[key]
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def keys(self):
+        for k, v in sorted(self.count_dict.items(), key=lambda x: - x[1]):
+            yield k
+
+    def items(self):
+        for k in self:
+            yield k, self.value_dict[k]
+
+    def values(self):
+        for k in self:
+            yield self.value_dict[k]
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({repr(dict(self))})'
 
 
 class PriorityDict:
@@ -153,23 +206,23 @@ class PriorityDict:
         unit = self.pq.pop()
         while not unit.valid:
             unit = self.pq.pop()
-        del self.unit_dict[unit.key]
+        del self.self.unit_dict[unit.key]
         return unit.value
 
     def __iter__(self):
         return self.keys()
 
     def keys(self):
-        return unit_dict.keys()
+        return self.unit_dict.keys()
 
     def items(self):
-        value_idx = unit.get_attr_idx('value')
-        for key, unit in unit_dict.items():
+        value_idx = self.Unit.get_attr_idx('value')
+        for key, unit in self.unit_dict.items():
             yield key, unit[value_idx]
 
     def values(self):
-        value_idx = unit.get_attr_idx('value')
-        for unit in unit_dict.values():
+        value_idx = self.Unit.get_attr_idx('value')
+        for unit in self.unit_dict.values():
             yield unit[value_idx]
 
 
