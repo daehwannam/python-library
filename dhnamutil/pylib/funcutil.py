@@ -10,3 +10,6 @@
 
 
 # singleton_dict = {}
+
+def identity(x):
+    return x

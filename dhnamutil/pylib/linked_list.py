@@ -25,13 +25,13 @@ class LinkedList(tuple):
     #     return super(LinkedList, cls).__new__(cls, tuple(args))
 
     @classmethod
-    def create_list(cls, *args, forward=True):
+    def create_list(cls, *args, leftward=True):
         return reduce(lambda lst, el: cls((el, lst)),
-                      reversed(args) if forward else args, cls.klass.nil)
+                      reversed(args) if leftward else args, cls.klass.nil)
 
     @classmethod
-    def from_seq(cls, seq, forward=True):
-        if forward:
+    def from_seq(cls, seq, leftward=True):
+        if leftward:
             if isinstance(seq, types.GeneratorType):
                 seq = tuple(seq)
             seq = reversed(seq)
@@ -91,17 +91,14 @@ class LinkedList(tuple):
 init_linked_list_class(LinkedList)
 
 
-class BackwardList(LinkedList):
+class RightwardList(LinkedList):
     @classmethod
-    def create_list(cls, *args, forward=False):
-        return super().create_list(*args, forward=forward)
+    def create_list(cls, *args, leftward=False):
+        return super().create_list(*args, leftward=leftward)
 
     @classmethod
-    def from_seq(cls, seq, forward=False):
-        return super().from_seq(seq, forward=forward)
-
-    def __repr__(self):
-        return str(tuple(reversed(tuple(self))))
+    def from_seq(cls, seq, leftward=False):
+        return super().from_seq(seq, leftward=leftward)
 
     def __iter__(self):
         items = tuple(self.__reversed__())
@@ -115,7 +112,7 @@ class BackwardList(LinkedList):
             lst = lst.cdr()
 
 
-init_linked_list_class(BackwardList)
+init_linked_list_class(RightwardList)
 
 
 class AssociationList(LinkedList):

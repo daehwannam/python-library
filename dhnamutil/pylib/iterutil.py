@@ -176,3 +176,39 @@ def nest(first, *others):
     else:
         for first_item in first:
             yield (first_item,)
+
+
+def chunk_sizes(total_num, num_chunks):
+    assert total_num >= num_chunks
+
+    if total_num % num_chunks > 0:
+        max_chunk_size = total_num // num_chunks + 1
+        for i in range(num_chunks):
+            if i + (max_chunk_size - 1) * num_chunks < total_num:
+                yield max_chunk_size
+            else:
+                yield max_chunk_size - 1
+    else:
+        yield from itertools.repeat(total_num // num_chunks, num_chunks)
+
+
+def idxmax(items, *, key):
+    assert len(items) > 0
+
+    def pair_key(pair):
+        idx, item = pair
+        return key(item)
+
+    max_idx, max_item = max(enumerate(items), key=pair_key)
+    return max_idx
+
+
+def idxmin(items, *, key):
+    return idxmax(items, key=lambda x: -key(x))
+
+
+def replace_with_last(items, idx):
+    item = items[idx]
+    items[idx] = items[-1]
+    items.pop()
+    return item
