@@ -5,14 +5,14 @@ import torch
 import torch.nn.functional as F
 
 
-def get_gumbels(self, num_gunbels):
+def get_gumbels(num_gunbels):
     # F^-1(u) = -log(-log(u))
     # u ~ Uniform(0, 1)
     return -torch.log(-torch.log(torch.rand(num_gunbels)))
 
 
-def get_perturbed_log_probs(self, parent_perturbed_log_prob, child_log_probs):
-    gumbels = self.get_gumbels(len(child_log_probs))
+def get_perturbed_log_probs(parent_perturbed_log_prob, child_log_probs):
+    gumbels = get_gumbels(len(child_log_probs))
     perturbed_log_probs = child_log_probs + gumbels
 
     assert perturbed_log_probs.dim() == 1
