@@ -1,6 +1,5 @@
 
 import functools
-import itertools
 from abc import abstractmethod
 
 
@@ -83,57 +82,8 @@ def abstractfunction(func):
     return new_func
 
 
-def implement(*classes):
-    "classes are super classes"
-
-    mro_classes = set(itertools.chain(*map(lambda cls: cls.mro(), classes)))
-
-    def implement_classes(method):
-        "check if the method implements an abstract method"
-
-        # https://stackoverflow.com/a/46194542
-        assert any(map(lambda cls: (hasattr(cls, "__abstractmethods__") and
-                                    (method.__name__ in cls.__abstractmethods__)),
-                       mro_classes)), \
-            "'{}' is not declared as abstract method for any super class".format(method.__name__)
-        return method
-
-    return implement_classes
-
-
-def non_implemented_classes(*classes):
-    "classes are super classes"
-
-    mro_classes = set(itertools.chain(*map(lambda cls: cls.mro(), classes)))
-
-    def non_implement_classes(method):
-        "re-declare a non-implemented abstract method"
-
-        # https://stackoverflow.com/a/46194542
-        assert any(map(lambda cls: (method.__name__ in cls.__abstractmethods__), mro_classes)), \
-            "'{}' is not declared as abstract method for any super class".format(method.__name__)
-        return abstractmethod(method)
-
-    return non_implement_classes
-
-
-def overrides(*classes):
-    "classes are super classes"
-
-    def _overrides(method):
-        "check if the method overrides an abstract method"
-
-        # https://stackoverflow.com/a/46194542
-        assert any(map(lambda cls: (method.__name__ in dir(cls)), classes)), \
-            "'{}' does not overrides a method defined in super classes".format(method.__name__)
-        return method
-
-    return _overrides
-
-
 def abstract_property(func):
     return property(abstractmethod(func))
-
 
 
 # def load_after_save(file_path_arg_name, *, load_func, save_func):

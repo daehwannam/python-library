@@ -200,33 +200,6 @@ class TreeStructure:
         recurse(self)
         return all_values
 
-    def subtree_size_ge(self, size):
-        stack = [self]
-        accum = 1
-        if accum >= size:
-            return True
-
-        while stack:
-            tree = stack.pop()
-            for child in reversed(tree.children):
-                accum += 1
-                if accum >= size:
-                    return True
-                if not tree.terminal:
-                    assert not tree.opened
-                    stack.append(child)
-
-        return False
-
-    def get_reduced_subtrees(self):
-        tree = self
-        subtrees = []
-        while not tree.terminal:
-            assert not tree.opened
-            subtrees.append(tree)
-            tree = tree.children[-1]
-        return subtrees
-
     def count_nodes(self, enable_prev=True):
         count = 1
         if enable_prev and self.prev:
