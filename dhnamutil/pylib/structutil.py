@@ -166,6 +166,9 @@ class TreeStructure:
     def is_closed_root(self):
         return self.is_closed() and self.is_root()
 
+    def is_opened_root(self):
+        return self.is_opened() and self.is_root()
+
     def is_complete(self):  # == is_closed_root
         return self.is_root() and self.is_closed()
 

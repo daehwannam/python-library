@@ -56,7 +56,7 @@ class AttrValidator:
 class Interface:
     "Collection of decorators for abstract classes"
 
-    def __init__(self, classes):
+    def __init__(self, *classes):
         "classes are super classes"
 
         self.classes = classes
@@ -87,3 +87,50 @@ class Interface:
         assert any(map(lambda cls: (method.__name__ in dir(cls)), self.classes)), \
             "'{}' does not override a method defined in super classes".format(method.__name__)
         return method
+
+
+# https://stackoverflow.com/a/5191224
+class ClassPropertyDescriptor:
+    def __init__(self, fget, fset=None):
+        self.fget = fget
+        self.fset = fset
+
+    def __get__(self, obj, klass=None):
+        if klass is None:
+            klass = type(obj)
+        return self.fget.__get__(obj, klass)()
+
+    def __set__(self, obj, value):
+        if not self.fset:
+            raise AttributeError("can't set attribute")
+        type_ = type(obj)
+        return self.fset.__get__(obj, type_)(value)
+
+    def setter(self, func):
+        if not isinstance(func, (classmethod, staticmethod)):
+            func = classmethod(func)
+        self.fset = func
+        return self
+
+
+def classproperty(func):
+    if not isinstance(func, (classmethod, staticmethod)):
+        func = classmethod(func)
+
+    return ClassPropertyDescriptor(func)
+
+
+def abstractproperty(func):
+    # It's identical with abc.abstractproperty
+    return property(abstractmethod(func))
+
+
+def abstractclassmethod(func):
+    # https://stackoverflow.com/a/60180758
+    #
+    # It's identical with abc.abstractclassmethod
+    return classmethod(abstractmethod(func))
+
+
+# alias
+abstractattribute = abstractmethod
