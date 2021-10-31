@@ -1,8 +1,6 @@
 
 import re
 
-from .typeutil import isanyinstance
-
 
 class AttrDict(dict):
     # https://stackoverflow.com/a/14620633
@@ -53,11 +51,21 @@ def get_recursive_dict(obj, dict_cls=dict):
         return obj
 
 
-def copy_recursively(obj):
-    if isanyinstance(obj, [list, tuple, set]):
-        return type(obj)(map(copy_recursively, obj))
+def get_recursive_coll(obj, coll_cls=list):
+    if isinstance(obj, (list, tuple, set)):
+        return coll_cls(map(get_recursive_coll, obj))
     elif isinstance(obj, dict):
-        return type(obj)([copy_recursively(k), copy_recursively(v)]
+        return coll_cls([get_recursive_coll(k), get_recursive_coll(v)]
+                        for k, v in obj.items())
+    else:
+        return obj
+
+
+def copy_recursive_coll(obj):
+    if isinstance(obj, (list, tuple, set)):
+        return type(obj)(map(copy_recursive_coll, obj))
+    elif isinstance(obj, dict):
+        return type(obj)([copy_recursive_coll(k), copy_recursive_coll(v)]
                          for k, v in obj.items())
     else:
         return obj

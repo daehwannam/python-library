@@ -62,6 +62,9 @@ class Interface:
         self.classes = classes
         self.mro_classes = set(itertools.chain(*map(lambda cls: cls.mro(), classes)))
 
+    def __iter__(self):
+        yield from self.classes
+
     def implement(self, method):
         "check if the method implements an abstract method"
 

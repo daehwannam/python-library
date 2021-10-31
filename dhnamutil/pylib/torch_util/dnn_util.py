@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from . import rnn_util
+from .. import structutil
 
 
 class MyModule(nn.Module):
@@ -229,3 +230,39 @@ def masked_log_softmax(input, mask=None, *args, **kwargs):
     return F.log_softmax(input.masked_fill((1 - mask.int()).bool(),
                                            float('-inf')),
                          *args, **kwargs)
+
+
+def pad_sequence(sequence, pad, max_length=None):
+    'Pad nested sequence'
+
+    dim = 0
+    seq = sequence
+    while isinstance(seq, (tuple, list)):
+        dim += 1
+        if len(seq) == 0:
+            break
+        seq = seq[0]
+    assert dim >= 2
+
+    if max_length is None:
+        def find_max_length(seq, depth):
+            if depth < dim:
+                return max(find_max_length(elem, depth + 1) for elem in seq)
+            else:
+                return len(seq)
+
+        max_length = find_max_length(sequence, 1)
+
+    padded_sequence = structutil.get_recursive_coll(sequence, coll_cls=list)
+
+    def pad_recursively(seq, depth):
+        if depth < dim:
+            for elem in seq:
+                pad_recursively(elem, depth + 1)
+        else:
+            while len(seq) < max_length:
+                seq.append(pad)
+
+    pad_recursively(padded_sequence, 1)
+
+    return padded_sequence
