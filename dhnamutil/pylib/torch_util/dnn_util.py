@@ -110,10 +110,10 @@ def normalize(tensor):
 class WeightedTanh(nn.Module):
     def __init__(self, scale_weight=None):
         super().__init__()
-        if scale_weight:
-            self.scale_weight = scale_weight
-        else:
+        if scale_weight is None:
             self.scale_weight = nn.Parameter(torch.ones(1))
+        else:
+            self.scale_weight = scale_weight
 
     def forward(self, tensor):
         return self.scale_weight * torch.tanh(tensor)
@@ -266,3 +266,16 @@ def pad_sequence(sequence, pad, max_length=None):
     pad_recursively(padded_sequence, 1)
 
     return padded_sequence
+
+
+def _has_param_grad(param):
+    grad = param.grad
+    return grad is not None and bool((grad != 0).any())
+
+
+def has_grad(obj):
+    if isinstance(obj, nn.Module):
+        module = obj
+        return any(map(_has_param_grad, module.parameters()))
+    else:
+        return _has_param_grad(obj)
