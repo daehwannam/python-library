@@ -1,5 +1,6 @@
 
 import re
+import warnings
 
 
 class AttrDict(dict):
@@ -178,6 +179,8 @@ class TreeStructure:
         return self.is_opened() and self.is_root()
 
     def is_complete(self):  # == is_closed_root
+        warnings.warn("'Warning: is_complete' is deprecated. Use 'is_closed_root' instead",
+                      DeprecationWarning)
         return self.is_root() and self.is_closed()
 
     def get_values(self):
