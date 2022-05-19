@@ -279,3 +279,7 @@ def has_grad(obj):
         return any(map(_has_param_grad, module.parameters()))
     else:
         return _has_param_grad(obj)
+
+
+def to_numpy(tensor):
+    return tensor.cpu().detach().numpy()
