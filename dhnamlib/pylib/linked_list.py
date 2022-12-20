@@ -43,8 +43,12 @@ class LinkedList(tuple):
     def car(self):
         return super(LinkedList, self).__getitem__(0) if self is not self.klass.nil else self
 
+    first = car
+
     def cdr(self):
         return super(LinkedList, self).__getitem__(1) if self is not self.klass.nil else self
+
+    rest = cdr
 
     def nth(self, n):
         lst = self
