@@ -13,5 +13,5 @@ This repository include my utilities for the following programming languages:
 
 *** Installation
 #+begin_src sh
-./install.sh path/to/install/location
+./install.sh path/to/installation/location
 #+end_src
