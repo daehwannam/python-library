@@ -1,6 +1,6 @@
 
-(import [..pylib.packageutil [*]])
-(import [.hyutil [weak-mangle]])
+(import [..pylib.package-util [*]])
+(import [.hy-util [weak-mangle]])
 (import importlib)
 
 
@@ -11,7 +11,7 @@
       (importlib.import-module (weak-mangle module-name) (weak-mangle package))))
 
 (comment
-  ;; moved to packageutil.py
+  ;; moved to package-util.py
 
   (defn get-ancestor [full-name gap]
     "'full-name' is the full name of module or package"

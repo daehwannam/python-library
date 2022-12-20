@@ -3,7 +3,7 @@ import types
 import functools
 from functools import reduce
 import itertools
-from . import iterutil
+from . import iter_util
 
 # from .decorators import classproperty
 
@@ -141,7 +141,7 @@ class AssociationList(LinkedList):
         return self.get(key, no_default=True)
 
     def get_values(self, attr_list, key=lambda x: x, defaultvalue=None, defaultfunc=None, no_default=False):
-        return iterutil.get_values_from_pairs(
+        return iter_util.get_values_from_pairs(
             self, attr_list, key, defaultvalue, defaultfunc, no_default)
 
     def update(self, attr, value):

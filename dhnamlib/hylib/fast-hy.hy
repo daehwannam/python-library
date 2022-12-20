@@ -10,17 +10,17 @@
 (import [hy.contrib.hy-repr [hy-repr]])
 (import hy.core.shadow)
 
-(import [dhnamutil.dhnamutil.hylib.hyutil [hysymb hyexpr hylist hyset
+(import [dhnamlib.hylib.hy-util [hysymb hyexpr hylist hyset
                                        hyexpr? hylist? hysequence?]])
-(import [dhnamutil.dhnamutil.pylib [iterutil]])
+(import [dhnamlib.pylib [iter-util]])
 
-(import [dhnamutil.dhnamutil.hylib [evalutil]])
-(import [dhnamutil.dhnamutil.hylib.linkedlist [AssociationList]])
+(import [dhnamlib.hylib [eval-util]])
+(import [dhnamlib.hylib.linkedlist [AssociationList]])
 
 
 (defmacro make-local-eval-hy []
   '(do
-     (import [dhnamutil.dhnamutil.hylib [fast-eval]])
+     (import [dhnamlib.hylib [fast-eval]])
      (fn [expr]
        (fast-eval.eval-hy expr (globals) (locals)))))
 
@@ -37,7 +37,7 @@
 (defn eval-hy [expr &optional global-namespace local-namespace]
   (setv args (list (remove none? [global-namespace local-namespace])))
   (setv py-code (hy2py expr))
-  (evalutil.pyeval py-code #* args))
+  (eval-util.pyeval py-code #* args))
 
 (defn hy2py [expr]
   (setv components [])
@@ -144,7 +144,7 @@
   (.append components (repr value)))
 
 (defn accumulate-call [head dependents components]
-  (setv kwarg-begin-idx (iterutil.index dependents hy.HyKeyword
+  (setv kwarg-begin-idx (iter-util.index dependents hy.HyKeyword
                                         :key (fn [x] (type x))
                                         :default (len dependents)))
   (setv arg-exprs (cut dependents 0 kwarg-begin-idx))
@@ -186,7 +186,7 @@
     (import [hy.lex [hy-parse]])
     (eval-hy '(tuple (map (fn [x] (abs (- (** x 2)))) (, 1 2 3 4))) (globals))
     ;; (eval '(tuple (map (fn [x] (abs (- (** x 2)))) (, 1 2 3 4))) (globals))
-    ;; (evalutil.pyeval (disassemble '(tuple (map (fn [x] (abs (- (** x 2)))) (, 1 2 3 4))) :codegen True) (globals) (locals))
-    ;; (evalutil.pyeval "tuple(map(lambda x: abs(- x ** 3), (1,2,3,4)))")
+    ;; (eval-util.pyeval (disassemble '(tuple (map (fn [x] (abs (- (** x 2)))) (, 1 2 3 4))) :codegen True) (globals) (locals))
+    ;; (eval-util.pyeval "tuple(map(lambda x: abs(- x ** 3), (1,2,3,4)))")
     ;; (disassemble '(tuple (map (fn [x] (abs (- (** x 2)))) (, 1 2 3 4))))
     ))

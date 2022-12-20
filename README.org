@@ -1,5 +1,17 @@
 
 ** Introduction
-   This repository include my utilities for the following programming languages:
-   - Python
-   - Hy
+This repository include my utilities for the following programming languages:
+- Python
+- Hy
+- Hissp
+
+** Setup
+*** Initialization
+#+begin_src sh
+./init.sh
+#+end_src
+
+*** Installation
+#+begin_src sh
+./install.sh path/to/install/location
+#+end_src

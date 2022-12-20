@@ -9,17 +9,17 @@
 (import hy.models)
 (import [hy.contrib.hy-repr [hy-repr]])
 
-(import [dhnamutil.dhnamutil.hylib.hyutil [hysymb hyexpr hylist hyset
+(import [dhnamlib.hylib.hy-util [hysymb hyexpr hylist hyset
                                        hyexpr? hylist? hysequence?]])
-(import [dhnamutil.dhnamutil.pylib [iterutil]])
+(import [dhnamlib.pylib [iter-util]])
 
-(import [dhnamutil.dhnamutil.hylib [evalutil]])
-(import [dhnamutil.dhnamutil.hylib.linkedlist [AssociationList]])
+(import [dhnamlib.hylib [eval-util]])
+(import [dhnamlib.hylib.linkedlist [AssociationList]])
 
 
 (defmacro make-local-eval-hy []
   '(do
-     (import [dhnamutil.dhnamutil.hylib [simple-hy]])
+     (import [dhnamlib.hylib [simple-hy]])
      (fn [expr]
        (simple-hy.evaluate-hy expr (make-binding :global-namespace (globals)
                                                  :local-namespace (locals))))))
@@ -147,7 +147,7 @@
 
 (defn eval-call [head dependents binding]
   (setv func (evaluate-hy head binding))
-  (setv kwarg-begin-idx (iterutil.index dependents hy.HyKeyword
+  (setv kwarg-begin-idx (iter-util.index dependents hy.HyKeyword
                                         :key (fn [x] (type x))
                                         :default (len dependents)))
   (setv arg-exprs (cut dependents 0 kwarg-begin-idx))
@@ -203,7 +203,7 @@
   (for [arg (range 2000)]
     (eval-hy '(tuple (map (fn [x] (abs (- (** x 2)))) (, 1 2 3 4))) (globals) (locals))
     ;; (eval '(tuple (map (fn [x] (abs (- (** x 2)))) (, 1 2 3 4))) (globals))
-    ;; (evalutil.pyeval (disassemble '(tuple (map (fn [x] (abs (- (** x 2)))) (, 1 2 3 4))) :codegen True) (globals) (locals))
-    ;; (evalutil.pyeval "tuple(map(lambda x: abs(- x ** 2), (1,2,3,4)))")
+    ;; (eval-util.pyeval (disassemble '(tuple (map (fn [x] (abs (- (** x 2)))) (, 1 2 3 4))) :codegen True) (globals) (locals))
+    ;; (eval-util.pyeval "tuple(map(lambda x: abs(- x ** 2), (1,2,3,4)))")
     ;; (disassemble '(tuple (map (fn [x] (abs (- (** x 2)))) (, 1 2 3 4))))
     ))
