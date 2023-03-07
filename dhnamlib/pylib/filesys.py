@@ -166,14 +166,17 @@ def python_load(path, *args):
     return eval(read_text(path), *args)
 
 
-def make_logger(name, log_file_path=None, to_stdout=True, overwriting=False, format_str=None):
+def make_logger(name, log_file_path=None, to_stdout=True, overwriting=False, format_str=None, level=None):
     if format_str is None:
         log_formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     else:
         log_formatter = logging.Formatter(format_str)
+
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG if level is None else level)
+    # logging.DEBUG is the lowest level.
+    # When the level is set as logging.DEBUG, the logger prints all messages.
 
     if log_file_path is not None:
         mode = 'w' if overwriting else 'a'
