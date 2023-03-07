@@ -2,8 +2,8 @@
 import random
 import math
 
-from . import iter_util
-from .structutil import AttrDict
+from . import iteration as iter_util
+from .struct import AttrDict
 from collections import namedtuple
 
 

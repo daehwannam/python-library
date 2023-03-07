@@ -6,7 +6,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
-from .rnn_util.rnn_util.common import get_indicator
+from .rnn_util.common import get_indicator
 
 
 class PositionalEncoding(nn.Module):

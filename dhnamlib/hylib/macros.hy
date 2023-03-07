@@ -86,7 +86,7 @@
   ;; it's not used
   (defmacro import* [&rest args]
     (import [hy [HyExpression HyList]])
-    (import [.hy-util [hylist hylist? hyexpr? hystring?]])
+    (import [.common [hylist hylist? hyexpr? hystring?]])
 
     (defn make-body [expr]
       (cond
@@ -106,7 +106,7 @@
 
 (defmacro import-by-str [&rest args]
   (import [hy [HyExpression HyList]])
-  (import [.hy-util [hyexpr hylist hylist? hystring? hyexpr?]])
+  (import [.common [hyexpr hylist hylist? hystring? hyexpr?]])
 
   (defn make-body [expr]
     (cond

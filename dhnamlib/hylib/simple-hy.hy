@@ -9,11 +9,11 @@
 (import hy.models)
 (import [hy.contrib.hy-repr [hy-repr]])
 
-(import [dhnamlib.hylib.hy-util [hysymb hyexpr hylist hyset
+(import [dhnamlib.hylib.common [hysymb hyexpr hylist hyset
                                        hyexpr? hylist? hysequence?]])
-(import [dhnamlib.pylib [iter-util]])
+(import [dhnamlib.pylib [iteration :as iter-util]])
 
-(import [dhnamlib.hylib [eval-util]])
+(import [dhnamlib.hylib [eval :as eval-util]])
 (import [dhnamlib.hylib.linkedlist [AssociationList]])
 
 

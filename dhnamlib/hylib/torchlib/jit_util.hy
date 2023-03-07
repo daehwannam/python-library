@@ -1,6 +1,6 @@
 
 (eval-and-compile
-  (import [dhnamlib.hylib.hy-util [replace-symbol-recursively]]))
+  (import [dhnamlib.hylib.common [replace-symbol-recursively]]))
 
 
 (defmacro! inline-map [o!func seq]

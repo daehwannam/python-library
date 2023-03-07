@@ -6,7 +6,7 @@ from collections import deque, defaultdict
 
 from . import min_max_heap
 from . import algorithms
-from .structutil import namedlist
+from .struct import namedlist
 
 
 class HeapPQ:

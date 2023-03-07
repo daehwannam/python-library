@@ -1,10 +1,12 @@
 
+import os
+import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from . import rnn_util
-from .. import structutil
 
 
 class MyModule(nn.Module):
@@ -283,3 +285,22 @@ def has_grad(obj):
 
 def to_numpy(tensor):
     return tensor.cpu().detach().numpy()
+
+
+def seed_everything(seed):
+    # This code is copied from https://github.com/shijx12/KQAPro_Baselines/blob/7cea2738fd095a2c17594d492923ee80a212ac0f/utils/misc.py
+    '''
+    Set the seed of the entire development environment
+    :param seed:
+    :return:
+    '''
+    import random
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    # some cudnn methods can be random even after fixing the seed
+    # unless you tell it to be deterministic
+    torch.backends.cudnn.deterministic = True

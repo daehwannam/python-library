@@ -1,6 +1,6 @@
 
 (import [..pylib.package-util [*]])
-(import [.hy-util [weak-mangle]])
+(import [.common [weak-mangle]])
 (import importlib)
 
 
