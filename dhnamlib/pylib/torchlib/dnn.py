@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from . import rnn_util
+from . import rnnlib
 
 
 class MyModule(nn.Module):
@@ -87,9 +87,9 @@ def make_cuda_on(condition):
 
 
 def create_lstm(*args, **kargs):
-    # return rnn_util.LayerNormLSTM(*args, **kargs)  # debug
+    # return rnnlib.LayerNormLSTM(*args, **kargs)  # debug
     if kargs['r_dropout'] > 0 or kargs['layer_norm_enabled']:
-        return rnn_util.LayerNormLSTM(*args, **kargs)
+        return rnnlib.LayerNormLSTM(*args, **kargs)
     else:
         del kargs['r_dropout'], kargs['layer_norm_enabled']
         if ((len(args) > 2 and args[2] == 1) or kargs['num_layers'] == 1) and kargs['dropout'] > 0:
@@ -99,7 +99,7 @@ def create_lstm(*args, **kargs):
 
 def create_lstm_cell(*args, **kargs):
     if kargs['dropout'] > 0 or kargs['layer_norm_enabled']:
-        return rnn_util.LayerNormLSTMCell(*args, **kargs)
+        return rnnlib.LayerNormLSTMCell(*args, **kargs)
     else:
         del kargs['dropout'], kargs['layer_norm_enabled']
         return nn.LSTMCell(*args, **kargs)
