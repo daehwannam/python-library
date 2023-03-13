@@ -1,6 +1,6 @@
 
 ** Introduction
-This repository include my utilities for the following programming languages:
+This repository includes my utilities for the following programming languages:
 - Python
 - Hy
 - Hissp
