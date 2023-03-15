@@ -28,6 +28,20 @@ def cached_property(func):
     return property(cache(func))
 
 
+# def singleton(func):
+#     @functools.wraps(func)
+#     def decorated_func(*args, **kwargs):
+#         if decorated_func.singleton is None:
+#             decorated_func.singleton = func(*args, **kwargs)
+#         else:
+#             raise Exception('This function is already evaluated.')
+#         return decorated_func.singleton
+
+#     decorated_func.singleton = None
+
+#     return decorated_func
+
+
 def unnecessary(func):
     called = False
 
