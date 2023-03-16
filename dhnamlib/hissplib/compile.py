@@ -12,9 +12,9 @@ def lissp_to_hissp(lissp_expr):
 
 def eval_lissp(code, ns=None):
     if ns is None:
-        ns = inspect.stack()[1][0].f_globals
-        # merging globals and locals could be a better choice
-        # >>> inspect.stack()[1][0].f_locals
+        # merging globals and locals
+        ns = {**inspect.stack()[1][0].f_globals,
+              **inspect.stack()[1][0].f_locals}
 
     hissp_form = lissp_to_hissp(code)
     py_code = readerless(hissp_form, ns=ns)
