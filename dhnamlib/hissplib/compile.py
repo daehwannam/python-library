@@ -10,14 +10,18 @@ def lissp_to_hissp(lissp_expr):
     return next(lissp_parser.reads(lissp_expr))
 
 
-def eval_lissp(code, ns=None):
+def eval_lissp(code, ns=None, extra_ns=None):
     if ns is None:
         # merging globals and locals
         ns = {**inspect.stack()[1][0].f_globals,
               **inspect.stack()[1][0].f_locals}
 
+    if extra_ns is not None:
+        ns = {**ns, **extra_ns}
+
     hissp_form = lissp_to_hissp(code)
     py_code = readerless(hissp_form, ns=ns)
+
     return eval(py_code, ns)
 
 

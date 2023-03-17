@@ -212,3 +212,45 @@ def replace_with_last(items, idx):
     items[idx] = items[-1]
     items.pop()
     return item
+
+
+def split_by_indices(seq, indices):
+    last_idx = 0
+    for idx in indices:
+        yield seq[last_idx: idx]
+        last_idx = idx
+    yield seq[last_idx:]
+
+
+def partition(seq, n, strict=True, fill_value=None):
+    # Similar to Hy's partition
+    # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
+
+    assert not strict or fill_value is None
+    it = iter(seq)
+    remaining = True
+
+    def get_next_item():
+        nonlocal remaining
+        try:
+            return next(it)
+        except StopIteration:
+            remaining = False
+            return fill_value
+
+    while remaining:
+        first_item = get_next_item()
+        if remaining:
+            items = [first_item]
+            if strict:
+                for _ in range(n - 1):
+                    item = get_next_item()
+                    if remaining:
+                        items.append(item)
+                    else:
+                        raise Exception('The total number of items is not divided by {}'.format(n))
+            else:
+                items.extend(get_next_item() for _ in range(n - 1))
+            yield tuple(items)
+        else:
+            break
