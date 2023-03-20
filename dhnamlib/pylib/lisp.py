@@ -1,7 +1,7 @@
 
 from dhnamlib.pylib.iteration import partition
 
-def parse_lisp_args(*symbols):
+def parse_hy_args(*symbols):
     '''
     e.g. parse_hy_args(*'100 200 300 :x 400 :y 500'.split())
     '''
