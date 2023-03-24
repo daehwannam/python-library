@@ -254,3 +254,8 @@ def partition(seq, n, strict=True, fill_value=None):
             yield tuple(items)
         else:
             break
+
+def chainseqs(seqs):
+    for seq in seqs:
+        for item in seq:
+            yield item
