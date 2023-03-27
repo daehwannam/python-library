@@ -83,6 +83,11 @@ def preprocess_quotes(text, **kwargs):
         raise Exception('No option is enabled')
 
     round_to_string = kwargs.get('round_to_string')
+    if not isinstance(round_to_string, (tuple, list)):
+        round_to_string_prefixes = (round_to_string,)
+    else:
+        round_to_string_prefixes = sorted(round_to_string, key=lambda x: type(x) != str)
+
     square_to_round = kwargs.get('square_to_round')
 
     quoted_paren_index_pairs = _get_quoted_paren_index_pairs(text)
@@ -92,22 +97,32 @@ def preprocess_quotes(text, **kwargs):
     splits = split_by_indices(text, region_indices)
     regions = []
     for start_idx, split in zip(chain([0], region_indices), splits):
+        region = split
         if start_idx in region_start_indices:
             if split.startswith("'("):
-                if round_to_string:
-                    # Round brackets
-                    # e.g. split == '(some symbols)
-                    #      region == "(some symbols)"
-                    region = '"{}"'.format(split[1:])
+                # Round brackets
+                # e.g. split == '(some symbols)
+                #      region == "(some symbols)"
+                for prefix in round_to_string_prefixes:
+                    if isinstance(prefix, str) and \
+                       (start_idx > 0 and text[start_idx - 1] == prefix):
+                        regions[-1] = regions[-1][:-len(prefix)]
+                        round_to_string_matched = True
+                        break
+                    elif prefix is True:
+                        round_to_string_matched = True
+                        break
+                else:
+                    round_to_string_matched = False
+                if round_to_string_matched:
+                    region = '"{}"'.format(split[1:].replace('"', r'\"'))
             else:
                 assert split.startswith("'[")
-                if square_to_round:
+                if square_to_round is not None:
                     # Square brackets
                     # e.g. split == '[some symbols]
                     #      region == '(some symbols)
                     region = split.replace('[', '(').replace(']', ')')
                     # region = "'({})".format(split[2:-1])
-        else:
-            region = split
         regions.append(region)
     return ''.join(regions)

@@ -41,7 +41,7 @@ def prelude():
     exec(prelude_code, globals)
 
 
-def load_macro(module, *macro_names):
+def load_macro(module, macro_names):
     globals = inspect.stack()[1][0].f_globals
     global_macro = globals['_macro_']
     for macro_name in macro_names:
@@ -51,4 +51,4 @@ def load_macro(module, *macro_names):
 
 
 def load_all_macros(module):
-    load_macro(module, dir(module))
+    load_macro(module, dir(module._macro_))
