@@ -61,6 +61,17 @@ def pairs2dicts(**kargs):
 #     print(dict_list == dict_list2)
 
 
+def merge_dicts(dicts, merge_values=None):
+    merged_dict = {}
+    for dic in dicts:
+        for k, v in dic.items():
+            merged_dict.setdefault(k, []).append(v)
+    if merge_values is not None:
+        for k, v in merged_dict.items():
+            merged_dict[k] = merge_values(v)
+    return merged_dict
+
+
 def all_same(seq):
     first = True
     for item in seq:
@@ -255,7 +266,8 @@ def partition(seq, n, strict=True, fill_value=None):
         else:
             break
 
-def chainseqs(seqs):
-    for seq in seqs:
-        for item in seq:
+
+def chainelems(coll):
+    for elem in coll:
+        for item in elem:
             yield item
