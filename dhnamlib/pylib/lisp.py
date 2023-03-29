@@ -29,47 +29,61 @@ def parse_hy_args(symbols):
     return args, kwargs
 
 
-def _get_quoted_paren_index_pairs(s, recursive=False):
+def get_prefixed_paren_index_pairs(text, info_dicts=[dict(prefix="'", paren_pair='()')], recursive=False):
     # https://stackoverflow.com/a/29992019
 
     '''
     e.g.
-    >>> s = "(a b '(c d '(e f)))"
-    >>> pairs = _get_quoted_paren_index_pairs(s)
-    >>> pair = pairs[0]
-    >>> s[pair[0]: pair[1]]
+    >>> text = "(a b '(c d '(e f)))"
+    >>> info_and_index_pair_tuples = get_prefixed_paren_index_pairs(text)
+    >>> info_dict, index_pair = info_and_index_pair_tuples[0]
+    >>> text[index_pair[0]: index_pair[1] + 1]  # index_pair[0] and index_pair[1] mean the indices of the opening and closing parentheses
 
-    "(c d '(e f)"
+    "(c d '(e f))"
     '''
+    # return a list of (prefix, index_pair)
+    # use info_dicts
+
+    info_tuples = tuple(tuple([info_dict['prefix'], info_dict['paren_pair']]) for info_dict in info_dicts)
+    l_to_r_paren = dict(pair for prefix, pair in info_tuples)
+    l_parens, r_parens = map(set, zip(*l_to_r_paren.items()))
 
     opening_stack = []  # stack of indices of opening parentheses
-    pairs = []
-    is_last_char_quote = False
-    num_quoted_exprs_under_parsing = 0
+    info_and_index_pair_tuples = []
+    num_prefixed_exprs_under_parsing = 0
 
-    for i, c in enumerate(s):
-        if c == "'":
-            is_last_char_quote = True
+    def match_prefix(past_char, prefix):
+        if len(past_chars) >= len(prefix):
+            return all(past_char == prefix_char
+                       for past_char, prefix_char in zip(reversed(past_chars), reversed(prefix)))
         else:
-            if c in ['(', '[']:
-                opening_stack.append((i, c, is_last_char_quote))
-                if is_last_char_quote:
-                    num_quoted_exprs_under_parsing += 1
-            elif c in [')', ']']:
-                try:
-                    idx, char, quoted = opening_stack.pop()
-                    assert (char == '(' and c == ')') or (char == '[' and c == ']')
-                    if quoted:
-                        num_quoted_exprs_under_parsing -= 1
-                        if recursive or num_quoted_exprs_under_parsing == 0:
-                            pairs.append((idx, i))
-                except IndexError:
-                    print('Too many closing parentheses')
-            is_last_char_quote = False
-    if opening_stack:  # check if stack is empty afterwards
+            return False
+
+    past_chars = []
+    for char_idx, char in enumerate(text):
+        if char in l_parens:
+            for info_idx, (prefix, (l_paren, r_paren)) in enumerate(info_tuples):
+                if char == l_paren and match_prefix(past_chars, prefix):
+                    num_prefixed_exprs_under_parsing += 1
+                    break
+            else:
+                info_idx = None
+            opening_stack.append((char_idx, info_idx))
+        elif char in r_parens:
+            try:
+                l_paren_idx, info_idx = opening_stack.pop()
+                assert l_to_r_paren[text[l_paren_idx]] == char
+                if info_idx is not None:
+                    num_prefixed_exprs_under_parsing -= 1
+                    if recursive or num_prefixed_exprs_under_parsing == 0:
+                        info_and_index_pair_tuples.append((info_dicts[info_idx], (l_paren_idx, char_idx)))
+            except IndexError:
+                print('Too many closing parentheses')
+        past_chars.append(char)
+    if opening_stack:
         print('Too many opening parentheses')
 
-    return pairs
+    return info_and_index_pair_tuples
 
 
 def remove_comments(text):
@@ -78,51 +92,13 @@ def remove_comments(text):
     return '\n'.join(split for split in splits if not split.lstrip().startswith(';'))
 
 
-def preprocess_quotes(text, **kwargs):
-    if not any(kwargs.values()):
-        raise Exception('No option is enabled')
-
-    round_to_string = kwargs.get('round_to_string')
-    if not isinstance(round_to_string, (tuple, list)):
-        round_to_string_prefixes = (round_to_string,)
-    else:
-        round_to_string_prefixes = sorted(round_to_string, key=lambda x: type(x) != str)
-
-    square_to_round = kwargs.get('square_to_round')
-
-    quoted_paren_index_pairs = _get_quoted_paren_index_pairs(text)
-    region_index_pairs = tuple((i - 1, j + 1)for i, j in quoted_paren_index_pairs)
-    region_start_indices = set(start for start, end in region_index_pairs)
-    region_indices = sorted(set(chain(*region_index_pairs)))
-    splits = split_by_indices(text, region_indices)
-    regions = []
-    for start_idx, split in zip(chain([0], region_indices), splits):
-        region = split
-        if start_idx in region_start_indices:
-            if split.startswith("'("):
-                # Round brackets
-                # e.g. split == '(some symbols)
-                #      region == "(some symbols)"
-                for prefix in round_to_string_prefixes:
-                    if isinstance(prefix, str) and \
-                       (start_idx > 0 and text[start_idx - 1] == prefix):
-                        regions[-1] = regions[-1][:-len(prefix)]
-                        round_to_string_matched = True
-                        break
-                    elif prefix is True:
-                        round_to_string_matched = True
-                        break
-                else:
-                    round_to_string_matched = False
-                if round_to_string_matched:
-                    region = '"{}"'.format(split[1:].replace('"', r'\"'))
-            else:
-                assert split.startswith("'[")
-                if square_to_round is not None:
-                    # Square brackets
-                    # e.g. split == '[some symbols]
-                    #      region == '(some symbols)
-                    region = split.replace('[', '(').replace(']', ')')
-                    # region = "'({})".format(split[2:-1])
-        regions.append(region)
-    return ''.join(regions)
+def replace_prefixed_parens(text, info_dicts):
+    info_and_index_pair_tuples = get_prefixed_paren_index_pairs(text, info_dicts)
+    prev_r_index = 0
+    splits = []
+    for info_dict, (l_index, r_index) in info_and_index_pair_tuples:
+        splits.append(text[prev_r_index + 1: l_index - len(info_dict['prefix'])])
+        splits.append(info_dict['fn'](text[l_index: r_index + 1]))
+        prev_r_index = r_index
+    splits.append(text[prev_r_index + 1:])
+    return ''.join(splits)
