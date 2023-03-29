@@ -159,6 +159,32 @@ def is_iterable(it):
     return True
 
 
+class iterate:
+    EMPTY = object()
+
+    def __init__(self, coll):
+        self.iterator = iter(coll)
+        self.reserved = self.EMPTY
+
+    def __next__(self):
+        if self.reserved is self.EMPTY:
+            return next(self.iterator)
+        else:
+            reserved = self.reserved
+            self.reserved = self.EMPTY
+            return reserved
+
+    def __bool__(self):
+        if self.reserved is self.EMPTY:
+            try:
+                self.reserved = next(self.iterator)
+                return True
+            except StopIteration:
+                return False
+        else:
+            return True
+
+
 def erange(*args):
     'extended range'
 
