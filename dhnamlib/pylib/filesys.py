@@ -70,7 +70,16 @@ class ExtendedJSONEncoder(json.JSONEncoder):
             return super().default(obj)
 
 
-def as_python_object(dic):
+class ExtendedJSONDecoder(json.JSONDecoder):
+    def default(self, obj):
+        if isinstance(obj, dict) and '__py__set' in obj:
+            return set(obj['__py__set'])
+        else:
+            return super().default(obj)
+
+
+def as_python_object_from_json(dic):
+    # https://stackoverflow.com/a/8230373
     if '__py__set' in dic and len(dic) == 1:
         return set(dic['__py__set'])
     else:
@@ -80,45 +89,63 @@ def as_python_object(dic):
 def example_extended_json_encoder():
     data = [1, 2, 3, set(['an', 'set', 'example']), {'some_key': 'some_value'}]
     j = json.dumps(data, cls=ExtendedJSONEncoder)
-    print(json.loads(j, object_hook=as_python_object))
+    print(json.loads(j, object_hook=as_python_object_from_json))
 
 
-def json_save(obj, path, **kargs):
+def json_save(obj, path, **kwargs):
     with open(path, 'w') as f:
-        json.dump(obj, f, **kargs)
+        json.dump(obj, f, **kwargs)
 
 
-def json_save_pretty(obj, path, **kargs):
-    new_kargs = dict(ensure_ascii=False, indent=4, sort_keys=False)
-    new_kargs.update(kargs)
-    json_save(obj, path, **new_kargs)
+def json_pretty_save(obj, path, **kwargs):
+    new_kwargs = dict(ensure_ascii=False, indent=4, sort_keys=False)
+    new_kwargs.update(kwargs)
+    json_save(obj, path, **new_kwargs)
 
 
-def json_dump_pretty(obj, fp, **kargs):
-    new_kargs = dict(ensure_ascii=False, indent=4, sort_keys=False)
-    new_kargs.update(kargs)
-    json.dump(obj, fp, **kargs)
+def json_pretty_dump(obj, fp, **kwargs):
+    new_kwargs = dict(ensure_ascii=False, indent=4, sort_keys=False)
+    new_kwargs.update(kwargs)
+    json.dump(obj, fp, **kwargs)
 
 
-def json_load(path, **kargs):
+def json_load(path, **kwargs):
     with open(path) as f:
-        return json.load(f, **kargs)
+        return json.load(f, **kwargs)
 
 
-def pickle_save(obj, path, **kargs):
+def extended_json_save(obj, path, **kwargs):
+    new_kwargs = dict(cls=ExtendedJSONEncoder)
+    new_kwargs.update(kwargs)
+    json_save(obj, path, **new_kwargs)
+
+
+def extended_json_pretty_save(obj, path, **kwargs):
+    new_kwargs = dict(cls=ExtendedJSONEncoder)
+    new_kwargs.update(kwargs)
+    json_pretty_save(obj, path, **new_kwargs)
+
+
+def extended_json_load(path, **kwargs):
+    new_kwargs = dict(object_hook=as_python_object_from_json)
+    new_kwargs.update(kwargs)
+    return json_load(path, **new_kwargs)
+
+
+def pickle_save(obj, path, **kwargs):
     with open(path, 'wb') as f:
-        pickle.dump(obj, f, **kargs)
+        pickle.dump(obj, f, **kwargs)
 
 
-def pickle_save_highest(obj, path, **kargs):
-    new_kargs = dict(protocol=pickle.HIGHEST_PROTOCOL)
-    new_kargs.update(kargs)
-    pickle_save(obj, path, **new_kargs)
+def pickle_save_highest(obj, path, **kwargs):
+    new_kwargs = dict(protocol=pickle.HIGHEST_PROTOCOL)
+    new_kwargs.update(kwargs)
+    pickle_save(obj, path, **new_kwargs)
 
 
-def pickle_load(path, **kargs):
+def pickle_load(path, **kwargs):
     with open(path, 'rb') as f:
-        return pickle.load(f, **kargs)
+        return pickle.load(f, **kwargs)
 
 
 def write_text(path, text):
@@ -148,14 +175,14 @@ def python_save(obj, path, repr=repr):
     return write_text(path, repr(obj))
 
 
-def python_save_pretty(obj, path, **kargs):
+def python_pretty_save(obj, path, **kwargs):
     with open(path, 'w') as f:
-        python_dump_pretty(obj, f, **kargs)
+        python_pretty_dump(obj, f, **kwargs)
 
 
-def python_dump_pretty(obj, fp, **kargs):
+def python_pretty_dump(obj, fp, **kwargs):
     pprint_kwargs = dict(indent=4)
-    pprint_kwargs.update(kargs)
+    pprint_kwargs.update(kwargs)
     assert 'stream' not in pprint_kwargs
 
     pprint.pprint(obj, stream=fp, **pprint_kwargs)
