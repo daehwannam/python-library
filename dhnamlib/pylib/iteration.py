@@ -61,14 +61,20 @@ def pairs2dicts(**kargs):
 #     print(dict_list == dict_list2)
 
 
-def merge_dicts(dicts, merge_values=None):
+def merge_dicts(dicts, merge_fn=None):
+    # e.g.
+    # >>> merge_dicts([dict(a=1, b=2), dict(a=10, c=30), dict(b=200, c=300)])
+    # {'a': [1, 10], 'b': [2, 200], 'c': [30, 300]}
+    #
+    # >>> merge_dicts([dict(a=1, b=2), dict(a=10, c=30), dict(b=200, c=300)], merge_fn=set)
+    # {'a': {1, 10}, 'b': {200, 2}, 'c': {300, 30}}
     merged_dict = {}
     for dic in dicts:
         for k, v in dic.items():
             merged_dict.setdefault(k, []).append(v)
-    if merge_values is not None:
+    if merge_fn is not None:
         for k, v in merged_dict.items():
-            merged_dict[k] = merge_values(v)
+            merged_dict[k] = merge_fn(v)
     return merged_dict
 
 
