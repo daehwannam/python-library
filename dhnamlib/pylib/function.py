@@ -13,3 +13,19 @@
 
 def identity(x):
     return x
+
+
+def maps(fn, coll):
+    "map only for side effects"
+    for elem in coll:
+        fn(elem)
+
+
+def starmaps(fn, coll):
+    for elem in coll:
+        fn(*elem)
+
+
+def starmap(fn, coll):
+    for elem in coll:
+        yield fn(*elem)
