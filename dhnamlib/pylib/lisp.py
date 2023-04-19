@@ -94,7 +94,7 @@ def remove_comments(text):
 
 def replace_prefixed_parens(text, info_dicts):
     info_and_index_pair_tuples = get_prefixed_paren_index_pairs(text, info_dicts)
-    prev_r_index = 0
+    prev_r_index = -1
     splits = []
     for info_dict, (l_index, r_index) in info_and_index_pair_tuples:
         splits.append(text[prev_r_index + 1: l_index - len(info_dict['prefix'])])

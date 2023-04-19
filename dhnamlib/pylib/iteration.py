@@ -299,6 +299,28 @@ def partition(seq, n, strict=True, fill_value=None):
             break
 
 
+def flatten(coll, coll_type=None):
+    # Similar to Hy's flatten
+    # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
+
+    if coll_type is None:
+        coll_type = type(coll)
+    elif isinstance(coll_type, list):
+        coll_type = tuple(coll_type)
+
+    flattened = []
+
+    def recurse(obj):
+        if isinstance(obj, coll_type):
+            for elem in obj:
+                recurse(elem)
+        else:
+            flattened.append(obj)
+
+    recurse(coll)
+    return flattened
+
+
 def chainelems(coll):
     for elem in coll:
         for item in elem:

@@ -15,13 +15,12 @@ def identity(x):
     return x
 
 
-def maps(fn, coll):
-    "map only for side effects"
+def loop(fn, coll):
     for elem in coll:
         fn(elem)
 
 
-def starmaps(fn, coll):
+def starloop(fn, coll):
     for elem in coll:
         fn(*elem)
 
