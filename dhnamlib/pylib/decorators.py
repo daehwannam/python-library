@@ -151,35 +151,45 @@ def curry(func):
     '''
     Example
     >>> @curry
-    >>> def func(a, b, c, *, d, e):
-    >>>     return (a, b, c, d, e)
+    >>> def func(a, b, c, *, d, e, f=6, g=7):
+    >>>     return (a, b, c, d, e, f, g)
     >>>
     >>> print(func(1, 2)(3, 4, 5))
     >>> print(func(1, 2, 3, 4, 5))
     >>> print(func(1, 2, d=4)(3, e=5))
+    >>> print(func(1, 2, d=4)(3, e=5, f=66))
     '''
 
     signature = inspect.signature(func)
+    param_keys = []
+    optional_param_keys = set()
+    reading_optional_param = False
     for name, param in signature.parameters.items():
         param_str = str(param)
-        assert param_str == '*' or not param_str.startswith('*')  # e.g. *args or **kwargs -> not allowed
-        assert "=" not in param_str  # e.g. var='default-value' -> not allowed
+        if "=" in param_str:  # e.g. var='default-value' -> not allowed
+            reading_optional_param = True
+            optional_param_keys.add(name)
+        else:
+            assert param_str == '*' or not param_str.startswith('*')  # e.g. *args or **kwargs -> not allowed
+            assert not reading_optional_param
+            param_keys.append(name)
 
     placeholder = object()
-    param_keys = tuple(signature.parameters.keys())
     param_dict = dict([k, placeholder] for k in param_keys)
 
     def make_curried(_param_dict, positional_arg_count):
         def curried(*args, **kwargs):
             param_dict = dict(_param_dict)
             for idx, arg in enumerate(args, positional_arg_count):
-                if idx >= len(param_keys):
-                    breakpoint()
                 assert param_dict[param_keys[idx]] is placeholder
                 param_dict[param_keys[idx]] = arg
 
             for k, v in kwargs.items():
-                assert param_dict[k] is placeholder
+                if k in optional_param_keys:
+                    assert k not in param_dict
+                else:
+                    assert k in param_dict
+                    assert param_dict[k] is placeholder
                 param_dict[k] = v
 
             if all(value is not placeholder for value in param_dict.values()):
