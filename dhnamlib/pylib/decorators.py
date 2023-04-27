@@ -1,5 +1,7 @@
 
 import functools
+import inspect
+
 from . import filesys
 
 
@@ -59,7 +61,7 @@ def unnecessary(func):
 
 def abstractfunction(func):
     @functools.wraps(func)
-    def new_func(*args, **kargs):
+    def new_func(*args, **kwargs):
         raise NotImplementedError(
             "The abstract function '{}' is not implemented".format(func.__name__))
     return new_func
@@ -143,3 +145,98 @@ def file_cache(file_path_arg_name='file_cache_path', *, save_fn=None, load_fn=No
 
 
 fcache = file_cache(format='extended_json_pretty')
+
+
+def curry(func):
+    '''
+    Example
+    >>> @curry
+    >>> def func(a, b, c, *, d, e):
+    >>>     return (a, b, c, d, e)
+    >>>
+    >>> print(func(1, 2)(3, 4, 5))
+    >>> print(func(1, 2, 3, 4, 5))
+    >>> print(func(1, 2, d=4)(3, e=5))
+    '''
+
+    signature = inspect.signature(func)
+    for name, param in signature.parameters.items():
+        param_str = str(param)
+        assert param_str == '*' or not param_str.startswith('*')  # e.g. *args or **kwargs -> not allowed
+        assert "=" not in param_str  # e.g. var='default-value' -> not allowed
+
+    placeholder = object()
+    param_keys = tuple(signature.parameters.keys())
+    param_dict = dict([k, placeholder] for k in param_keys)
+
+    def make_curried(_param_dict, positional_arg_count):
+        def curried(*args, **kwargs):
+            param_dict = dict(_param_dict)
+            for idx, arg in enumerate(args, positional_arg_count):
+                if idx >= len(param_keys):
+                    breakpoint()
+                assert param_dict[param_keys[idx]] is placeholder
+                param_dict[param_keys[idx]] = arg
+
+            for k, v in kwargs.items():
+                assert param_dict[k] is placeholder
+                param_dict[k] = v
+
+            if all(value is not placeholder for value in param_dict.values()):
+                return func(**param_dict)
+            else:
+                return make_curried(param_dict, positional_arg_count + len(args))
+        return curried
+
+    return make_curried(param_dict, 0)
+
+
+class Register:
+    def __init__(self):
+        self.memory = dict()
+
+    @curry
+    def __call__(self, identifier, obj):
+        assert identifier not in self.memory
+        self.memory[identifier] = obj
+        return obj
+
+    # def __call__(self, identifier, func=None):
+    #     if func is None:
+    #         def decorator(func):
+    #             assert identifier not in self.memory
+    #             self.memory[identifier] = func
+    #             return func
+    #         return decorator
+    #     else:
+    #         assert identifier not in self.memory
+    #         self.memory[identifier] = func
+
+    def retrieve(self, identifier):
+        return self.memory[identifier]
+
+
+class FunctionRegister(Register):
+    '''
+    Example
+    >>> register = FunctionRegister()
+    >>> name_fn = register.retrieve('name-fn')
+    >>>
+    >>> @register('name-fn')
+    >>> def full_name(first, last):
+    >>>     return ' '.join([first, last])
+    >>>
+    >>> print(name_fn('John', 'Smith'))
+    '''
+
+    def retrieve(self, identifier):
+        if identifier not in self.memory:
+            def registered(*args, **kwargs):
+                if identifier in self.memory:
+                    return self.memory[identifier](*args, **kwargs)
+                else:
+                    raise Exception(f'"{identifier}" is not registered.')
+        else:
+            registered = self.memory[identifier]
+
+        return registered
