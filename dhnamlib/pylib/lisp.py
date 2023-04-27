@@ -12,21 +12,26 @@ def parse_hy_args(symbols):
     args = []
 
     for idx, symbol in enumerate(symbols):
-        if symbol.startswith(':'):
+        if is_keyword(symbol):
             break
         else:
             args.append(symbol)
     else:
         idx += 1
 
-    def remove_colon(k):
-        assert k[0] == ':'
-        return k[1:]
-
     pairs = partition(symbols[idx:], 2)
-    kwargs = dict((remove_colon(k), v) for k, v in pairs)
+    kwargs = dict((keyword_to_symbol(k), v) for k, v in pairs)
 
     return args, kwargs
+
+
+def is_keyword(symbol):
+    return symbol.startswith(':')
+
+
+def keyword_to_symbol(keyword):
+    assert is_keyword(keyword)
+    return keyword[1:]
 
 
 def get_prefixed_paren_index_pairs(text, info_dicts=[dict(prefix="'", paren_pair='()')], recursive=False):

@@ -192,7 +192,23 @@ def curry(func):
 
 
 class Register:
-    def __init__(self):
+    '''
+    Example
+    >>> register = Register(strategy='lazy')
+    >>> name_fn = register.retrieve('name-fn')
+    >>>
+    >>> @register('name-fn')
+    >>> def full_name(first, last):
+    >>>     return ' '.join([first, last])
+    >>>
+    >>> print(name_fn('John', 'Smith'))
+    '''
+
+    strategies = ['instant', 'lazy', 'conditional']
+
+    def __init__(self, strategy='instant'):
+        assert strategy in self.strategies
+        self.strategy = strategy
         self.memory = dict()
 
     @curry
@@ -212,31 +228,38 @@ class Register:
     #         assert identifier not in self.memory
     #         self.memory[identifier] = func
 
-    def retrieve(self, identifier):
-        return self.memory[identifier]
-
-
-class FunctionRegister(Register):
-    '''
-    Example
-    >>> register = FunctionRegister()
-    >>> name_fn = register.retrieve('name-fn')
-    >>>
-    >>> @register('name-fn')
-    >>> def full_name(first, last):
-    >>>     return ' '.join([first, last])
-    >>>
-    >>> print(name_fn('John', 'Smith'))
-    '''
-
-    def retrieve(self, identifier):
-        if identifier not in self.memory:
-            def registered(*args, **kwargs):
-                if identifier in self.memory:
-                    return self.memory[identifier](*args, **kwargs)
-                else:
-                    raise Exception(f'"{identifier}" is not registered.')
+    def retrieve(self, identifier, strategy=None):
+        if strategy is None:
+            strategy = self.strategy
         else:
+            assert strategy in self.strategies
+
+        if (strategy == 'lazy') or (strategy == 'conditional' and identifier not in self.memory):
+            registered = LazyValue(self, identifier)
+        else:
+            assert strategy in ['instant', 'conditional']
             registered = self.memory[identifier]
 
         return registered
+
+    @staticmethod
+    def _msg_not_registered(identifier):
+        return f'"{identifier}" is not registered.'
+
+
+class LazyValue:
+    def __init__(self, register, identifier):
+        self.register = register
+        self.identifier = identifier
+
+    def get(self):
+        if self.identifier in self.register.memory:
+            return self.register.memory[self.identifier]
+        else:
+            raise Exception(Register._msg_not_registered(self.identifier))
+
+    def __call__(self, *args, **kwargs):
+        if self.identifier in self.register.memory:
+            return self.register.memory[self.identifier](*args, **kwargs)
+        else:
+            raise Exception(Register._msg_not_registered(self.identifier))
