@@ -1,6 +1,7 @@
 
 import functools
 import inspect
+import itertools
 
 from . import filesys
 
@@ -94,7 +95,7 @@ save_load_pair_dict = dict(
 )
 
 
-def file_cache(file_path_arg_name='file_cache_path', *, save_fn=None, load_fn=None, format='pickle'):
+def file_cache(file_path_arg_name='file_cache_path', *, save_fn=None, load_fn=None, format='extended_json_pretty'):
     '''
     Example 1
     >>> from dhnamlib.pylib.filesys import json_save, json_load
@@ -161,38 +162,36 @@ def curry(func):
     '''
 
     signature = inspect.signature(func)
-    param_keys = []
-    optional_param_keys = set()
-    reading_optional_param = False
+    position_to_param_key = []
+    positional_param_keys = set()
+    reading_keyword_params = False
     for name, param in signature.parameters.items():
         param_str = str(param)
-        if "=" in param_str:  # e.g. var='default-value' -> not allowed
-            reading_optional_param = True
-            optional_param_keys.add(name)
+        if "=" in param_str or reading_keyword_params:
+            # e.g. var='default-value'
+            pass
+        elif "*" == param_str:
+            reading_keyword_params = True
         else:
-            assert param_str == '*' or not param_str.startswith('*')  # e.g. *args or **kwargs -> not allowed
-            assert not reading_optional_param
-            param_keys.append(name)
+            # e.g. *args and **kwargs are not allowed
+            assert not param_str.startswith('*')
+            positional_param_keys.add(name)
+        position_to_param_key.append(name)
 
-    placeholder = object()
-    param_dict = dict([k, placeholder] for k in param_keys)
+    param_dict = dict()
 
     def make_curried(_param_dict, positional_arg_count):
         def curried(*args, **kwargs):
             param_dict = dict(_param_dict)
             for idx, arg in enumerate(args, positional_arg_count):
-                assert param_dict[param_keys[idx]] is placeholder
-                param_dict[param_keys[idx]] = arg
+                assert position_to_param_key[idx] not in param_dict
+                param_dict[position_to_param_key[idx]] = arg
 
             for k, v in kwargs.items():
-                if k in optional_param_keys:
-                    assert k not in param_dict
-                else:
-                    assert k in param_dict
-                    assert param_dict[k] is placeholder
+                assert k not in param_dict
                 param_dict[k] = v
 
-            if all(value is not placeholder for value in param_dict.values()):
+            if all(param_key in param_dict for param_key in positional_param_keys):
                 return func(**param_dict)
             else:
                 return make_curried(param_dict, positional_arg_count + len(args))
@@ -201,6 +200,7 @@ def curry(func):
     return make_curried(param_dict, 0)
 
 
+# Register
 class Register:
     '''
     Example
@@ -221,8 +221,17 @@ class Register:
         self.strategy = strategy
         self.memory = dict()
 
+    @staticmethod
+    def _normalize_identifier(identifier):
+        if isinstance(identifier, list):
+            identifier = tuple(identifier)
+        else:
+            return identifier
+
     @curry
     def __call__(self, identifier, obj):
+        identifier = self._normalize_identifier(identifier)
+
         assert identifier not in self.memory
         self.memory[identifier] = obj
         return obj
@@ -239,6 +248,8 @@ class Register:
     #         self.memory[identifier] = func
 
     def retrieve(self, identifier, strategy=None):
+        identifier = self._normalize_identifier(identifier)
+
         if strategy is None:
             strategy = self.strategy
         else:
@@ -273,3 +284,119 @@ class LazyValue:
             return self.register.memory[self.identifier](*args, **kwargs)
         else:
             raise Exception(Register._msg_not_registered(self.identifier))
+
+
+# Environment
+# modified from https://stackoverflow.com/a/2002140/6710003
+
+class Environment:
+    """
+    Example 1
+    >>> env = Environment()
+    >>>
+    >>> with env(a=10, b=20):
+    >>>     with env(a=20, c= 30):
+    >>>         print(env.a, env.b, env.c)
+    >>>     print(env.a, env.b)
+
+    Example 2
+    >>> env = Environment()
+    >>>
+    >>> @env
+    >>> def func(x=env.ph.a, y=env.ph.b):
+    >>>     return x + y
+    >>>
+    >>> with env(a=10, b=20):
+    >>>     print(func())
+
+    """
+    _setattr_enabled = True
+
+    def __init__(self, stack=[]):
+        self._stack = stack
+        self._reserved_names = ['ph']
+
+        self.ph = _PlaceholderFactory(self)
+
+        # self._setattr_enabled should be set at the end
+        self._setattr_enabled = False
+
+    def __getattr__(self, name):
+        print(name)
+        for scope in reversed(self._stack):
+            if name in scope:
+                return scope[name]
+        raise AttributeError("no such variable in environment")
+
+    def __setattr__(self, name, value):
+        if self._setattr_enabled:
+            super().__setattr__(name, value)
+        else:
+            raise AttributeError("env variables can only be set using `with Env.let()`")
+
+    def let(self, **kwargs):
+        for reserved_name in self._reserved_names:
+            if reserved_name in kwargs:
+                raise Exception(f'"{reserved_name}" is a reserved name')
+
+        return _EnvBlock(self._stack, kwargs)
+
+    def decorate(self, func):
+        signature = inspect.signature(func)
+
+        def generate_ph_info_tuples():
+            for idx, (name, param) in enumerate(signature.parameters.items()):
+                if param.default is not inspect.Parameter.empty and \
+                   isinstance(param.default, _Placeholder) and \
+                   param.default.env == self:
+                    yield idx, name, param.default
+
+        ph_info_tuples = tuple(generate_ph_info_tuples())
+
+        @functools.wraps(func)
+        def new_func(*args, **kwargs):
+            new_kwargs = dict(kwargs)
+            for idx, name, placeholder in ph_info_tuples:
+                if len(args) <= idx and name not in kwargs:
+                    new_kwargs[name] = placeholder.get()
+            return func(*args, **new_kwargs)
+
+        return new_func
+
+    def __call__(self, *args, **kwargs):
+        if len(args) > 0:
+            assert len(args) == 1
+            func = args[0]
+            assert callable(func)
+            assert len(kwargs) == 0
+            return self.decorate(func)
+        else:
+            return self.let(**kwargs)
+
+
+class _EnvBlock:
+    def __init__(self, stack, kwargs):
+        self._stack = stack
+        self.kwargs = kwargs
+
+    def __enter__(self):
+        self._stack.append(self.kwargs)
+
+    def __exit__(self, t, v, tb):
+        self._stack.pop()
+
+
+class _PlaceholderFactory:
+    def __init__(self, env: Environment):
+        self.env = env
+
+    def __getattr__(self, name):
+        return _Placeholder(self.env, name)
+
+class _Placeholder:
+    def __init__(self, env, name):
+        self.env = env
+        self.name = name
+
+    def get(self):
+        return self.env.__getattr__(self.name)

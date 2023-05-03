@@ -1,23 +1,27 @@
 
+import inspect
+import operator
 from functools import reduce
 from hissp.munger import munge
 
 
-# basic data-structures
-def make_tuple(*args):
-    return args
+# # basic data-structures
+# "preluce" already includes entuple, enlist, ...
+
+# def make_tuple(*args):
+#     return args
 
 
-def make_list(*args):
-    return list(args)
+# def make_list(*args):
+#     return list(args)
 
 
-def make_dict(*args, **kwargs):
-    return dict(*args, **kwargs)
+# def make_dict(*args, **kwargs):
+#     return dict(*args, **kwargs)
 
 
-def make_set(*args):
-    return set(*args)
+# def make_set(*args):
+#     return set(*args)
 
 
 # Arithmetic operations
@@ -65,7 +69,18 @@ for name, obj in tuple(globals().items()):
 op_name_func_pairs = [['+', add],
                       ['-', sub],
                       ['*', mul],
-                      ['/', div]]
+                      ['/', div]
+                      ['=', operator.eq],
+                      ['!=', operator.ne],
+                      ['<', operator.lt],
+                      ['<=', operator.le],
+                      ['>', operator.gt],
+                      ['>=', operator.ge]]
 
 for op_name, func in op_name_func_pairs:
     globals().__setitem__(munge(op_name), func)
+
+
+def import_operators():
+    for op_name, func in op_name_func_pairs:
+        inspect.stack()[1][0].f_locals.__setitem__(munge(op_name), func)
