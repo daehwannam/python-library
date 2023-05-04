@@ -286,27 +286,27 @@ class LazyValue:
             raise Exception(Register._msg_not_registered(self.identifier))
 
 
-# Environment
+# Scope
 # modified from https://stackoverflow.com/a/2002140/6710003
 
-class Environment:
+class Scope:
     """
     Example 1
-    >>> env = Environment()
+    >>> scope = Scope()
     >>>
-    >>> with env(a=10, b=20):
-    >>>     with env(a=20, c= 30):
-    >>>         print(env.a, env.b, env.c)
-    >>>     print(env.a, env.b)
+    >>> with scope(a=10, b=20):
+    >>>     with scope(a=20, c= 30):
+    >>>         print(scope.a, scope.b, scope.c)
+    >>>     print(scope.a, scope.b)
 
     Example 2
-    >>> env = Environment()
+    >>> scope = Scope()
     >>>
-    >>> @env
-    >>> def func(x=env.ph.a, y=env.ph.b):
+    >>> @scope
+    >>> def func(x=scope.ph.a, y=scope.ph.b):
     >>>     return x + y
     >>>
-    >>> with env(a=10, b=20):
+    >>> with scope(a=10, b=20):
     >>>     print(func())
 
     """
@@ -322,7 +322,6 @@ class Environment:
         self._setattr_enabled = False
 
     def __getattr__(self, name):
-        print(name)
         for scope in reversed(self._stack):
             if name in scope:
                 return scope[name]
@@ -332,7 +331,7 @@ class Environment:
         if self._setattr_enabled:
             super().__setattr__(name, value)
         else:
-            raise AttributeError("env variables can only be set using `with Env.let()`")
+            raise AttributeError("scope variables can only be set using `with Scope.let()`")
 
     def let(self, **kwargs):
         for reserved_name in self._reserved_names:
@@ -348,16 +347,20 @@ class Environment:
             for idx, (name, param) in enumerate(signature.parameters.items()):
                 if param.default is not inspect.Parameter.empty and \
                    isinstance(param.default, _Placeholder) and \
-                   param.default.env == self:
-                    yield idx, name, param.default
+                   param.default.scope == self:
+                    if param.kind == inspect._ParameterKind.POSITIONAL_OR_KEYWORD:
+                        pos_idx = idx
+                    else:
+                        pos_idx = None
+                    yield pos_idx, name, param.default
 
         ph_info_tuples = tuple(generate_ph_info_tuples())
 
         @functools.wraps(func)
         def new_func(*args, **kwargs):
             new_kwargs = dict(kwargs)
-            for idx, name, placeholder in ph_info_tuples:
-                if len(args) <= idx and name not in kwargs:
+            for pos_idx, name, placeholder in ph_info_tuples:
+                if (pos_idx is None or len(args) <= pos_idx) and name not in kwargs:
                     new_kwargs[name] = placeholder.get()
             return func(*args, **new_kwargs)
 
@@ -387,16 +390,16 @@ class _EnvBlock:
 
 
 class _PlaceholderFactory:
-    def __init__(self, env: Environment):
-        self.env = env
+    def __init__(self, scope: Scope):
+        self.scope = scope
 
     def __getattr__(self, name):
-        return _Placeholder(self.env, name)
+        return _Placeholder(self.scope, name)
 
 class _Placeholder:
-    def __init__(self, env, name):
-        self.env = env
+    def __init__(self, scope, name):
+        self.scope = scope
         self.name = name
 
     def get(self):
-        return self.env.__getattr__(self.name)
+        return self.scope.__getattr__(self.name)
