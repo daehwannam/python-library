@@ -155,49 +155,62 @@ def curry(func):
     >>> def func(a, b, c, *, d, e, f=6, g=7):
     >>>     return (a, b, c, d, e, f, g)
     >>>
-    >>> print(func(1, 2)(3, 4, 5))
-    >>> print(func(1, 2, 3, 4, 5))
+    >>> print(func(1, 2, 3)(d=4, e=5))
+    >>> print(func(1, 2)(3)(d=4, e=5))
     >>> print(func(1, 2, d=4)(3, e=5))
     >>> print(func(1, 2, d=4)(3, e=5, f=66))
     '''
 
     signature = inspect.signature(func)
     position_to_param_key = []
-    positional_param_keys = set()
-    reading_keyword_params = False
+    non_default_param_keys = set()
+    reading_positional_params = True
+    num_positional_only_params = 0
     for name, param in signature.parameters.items():
-        param_str = str(param)
-        if "=" in param_str or reading_keyword_params:
-            # e.g. var='default-value'
-            pass
-        elif "*" == param_str:
-            reading_keyword_params = True
+        if param.default is not inspect._empty:
+            reading_positional_params = False
         else:
-            # e.g. *args and **kwargs are not allowed
-            assert not param_str.startswith('*')
-            positional_param_keys.add(name)
-        position_to_param_key.append(name)
-
-    param_dict = dict()
-
-    def make_curried(_param_dict, positional_arg_count):
-        def curried(*args, **kwargs):
-            param_dict = dict(_param_dict)
-            for idx, arg in enumerate(args, positional_arg_count):
-                assert position_to_param_key[idx] not in param_dict
-                param_dict[position_to_param_key[idx]] = arg
-
-            for k, v in kwargs.items():
-                assert k not in param_dict
-                param_dict[k] = v
-
-            if all(param_key in param_dict for param_key in positional_param_keys):
-                return func(**param_dict)
+            non_default_param_keys.add(name)
+            if param.kind is inspect._ParameterKind.KEYWORD_ONLY:
+                reading_positional_params = False
             else:
-                return make_curried(param_dict, positional_arg_count + len(args))
+                assert reading_positional_params
+                # *args, **kwargs are disallowed
+                # assert param.kind not in {inspect._ParameterKind.VAR_POSITIONAL, inspect._ParameterKind.VAR_KEYWORD}
+                if param.kind is inspect._ParameterKind.POSITIONAL_ONLY:
+                    num_positional_only_params += 1
+                else:
+                    param.kind is inspect._ParameterKind.POSITIONAL_OR_KEYWORD
+                position_to_param_key.append(name)
+
+    def make_curried(prev_args, prev_kwargs):
+        def curried(*args, **kwargs):
+            new_args = list(prev_args)
+            for idx, arg in enumerate(args, len(prev_args)):
+                print(idx, len(position_to_param_key))
+                assert idx < len(position_to_param_key)
+                assert position_to_param_key[idx] not in prev_kwargs
+                new_args.append(arg)
+
+            new_kwargs = dict(prev_kwargs)
+            for k, v in kwargs.items():
+                assert k not in new_kwargs
+                new_kwargs[k] = v
+
+            def is_complete():
+                if num_positional_only_params <= len(new_args):
+                    arg_keys = set(itertools.chain(position_to_param_key[:len(new_args)], new_kwargs))
+                    return arg_keys.issuperset(non_default_param_keys)
+                else:
+                    return False
+
+            if is_complete():
+                return func(*new_args, **new_kwargs)
+            else:
+                return make_curried(new_args, new_kwargs)
         return curried
 
-    return make_curried(param_dict, 0)
+    return make_curried(list(), dict())
 
 
 # Register
@@ -325,7 +338,7 @@ class Scope:
         for scope in reversed(self._stack):
             if name in scope:
                 return scope[name]
-        raise AttributeError("no such variable in environment")
+        raise AttributeError("no such variable in the scope")
 
     def __setattr__(self, name, value):
         if self._setattr_enabled:
