@@ -187,7 +187,6 @@ def curry(func):
         def curried(*args, **kwargs):
             new_args = list(prev_args)
             for idx, arg in enumerate(args, len(prev_args)):
-                print(idx, len(position_to_param_key))
                 assert idx < len(position_to_param_key)
                 assert position_to_param_key[idx] not in prev_kwargs
                 new_args.append(arg)
