@@ -29,11 +29,26 @@ class Scope:
     >>> with scope(a=10, b=20):
     ...     print(func())
     30
+
+    Example 3:
+
+    >>> scope = Scope()
+    >>>
+    >>> @scope
+    >>> def func(x=scope.ph, y=scope.ph):
+    ...     return x + y
+    >>>
+    >>> with scope(x=10, y=20):
+    ...     print(func())
+    30
     """
     _setattr_enabled = True
 
-    def __init__(self, stack=[]):
-        self._stack = stack
+    def __init__(self, **kwargs):
+        self._stack = []
+        if kwargs:
+            # default values
+            self._stack.append(kwargs)
         self._reserved_names = ['ph']
 
         self.ph = _PlaceholderFactory(self)
@@ -67,23 +82,33 @@ class Scope:
             for idx, (name, param) in enumerate(signature.parameters.items()):
                 if (
                         param.default is not inspect.Parameter.empty and
-                        isinstance(param.default, _Placeholder) and
+                        (isinstance(param.default, _Placeholder) or
+                         isinstance(param.default, _PlaceholderFactory)) and
                         param.default.scope == self
                 ):
                     if param.kind == inspect._ParameterKind.POSITIONAL_OR_KEYWORD:
                         pos_idx = idx
                     else:
+                        assert param.kind == inspect._ParameterKind.KEYWORD_ONLY
                         pos_idx = None
-                    yield pos_idx, name, param.default
+                    if isinstance(param.default, _Placeholder):
+                        default = param.default
+                    else:
+                        assert isinstance(param.default, _PlaceholderFactory)
+                        default = param.default.__getattr__(name)
+                    yield pos_idx, name, default
 
         ph_info_tuples = tuple(generate_ph_info_tuples())
+
+        if len(ph_info_tuples) == 0:
+            raise Exception('no placeholder is used')
 
         @functools.wraps(func)
         def new_func(*args, **kwargs):
             new_kwargs = dict(kwargs)
             for pos_idx, name, placeholder in ph_info_tuples:
                 if (pos_idx is None or len(args) <= pos_idx) and name not in kwargs:
-                    new_kwargs[name] = placeholder.get()
+                    new_kwargs[name] = placeholder.get_value()
             return func(*args, **new_kwargs)
 
         return new_func
@@ -123,5 +148,5 @@ class _Placeholder:
         self.scope = scope
         self.name = name
 
-    def get(self):
+    def get_value(self):
         return self.scope.__getattr__(self.name)

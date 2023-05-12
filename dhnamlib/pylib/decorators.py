@@ -6,6 +6,78 @@ import itertools
 from . import filesys
 
 
+def curry(func):
+    '''
+    Example
+    >>> @curry
+    >>> def func(a, b, c, *, d, e, f=6, g=7):
+    >>>     return (a, b, c, d, e, f, g)
+    >>>
+    >>> print(func(1, 2, 3)(d=4, e=5))
+    >>> print(func(1, 2)(3)(d=4, e=5))
+    >>> print(func(1, 2, d=4)(3, e=5))
+    >>> print(func(1, 2, d=4)(3, e=5, f=66))
+    '''
+
+    # [Note]
+    # Implementation with functools.partial may be easier
+    # e.g.
+    # >>> from functools import partial
+    # >>> f = lambda *args, **kwargs: (args, kwargs)
+    # >>> partial(partial(partial(f, 1,2, a=10), 3,4, b=20), 5,6, c=30)()
+    # ((1, 2, 3, 4, 5, 6), {'a': 10, 'b': 20, 'c': 30})
+
+    signature = inspect.signature(func)
+    position_to_param_key = []
+    non_default_param_keys = set()
+    reading_positional_params = True
+    num_positional_only_params = 0
+    for name, param in signature.parameters.items():
+        if param.default is not inspect._empty:
+            reading_positional_params = False
+        else:
+            non_default_param_keys.add(name)
+            if param.kind is inspect._ParameterKind.KEYWORD_ONLY:
+                reading_positional_params = False
+            else:
+                assert reading_positional_params
+                # *args, **kwargs are disallowed
+                # assert param.kind not in {inspect._ParameterKind.VAR_POSITIONAL, inspect._ParameterKind.VAR_KEYWORD}
+                if param.kind is inspect._ParameterKind.POSITIONAL_ONLY:
+                    num_positional_only_params += 1
+                else:
+                    param.kind is inspect._ParameterKind.POSITIONAL_OR_KEYWORD
+                position_to_param_key.append(name)
+
+    def make_curried(prev_args, prev_kwargs):
+        def curried(*args, **kwargs):
+            new_args = list(prev_args)
+            for idx, arg in enumerate(args, len(prev_args)):
+                assert idx < len(position_to_param_key)
+                assert position_to_param_key[idx] not in prev_kwargs
+                new_args.append(arg)
+
+            new_kwargs = dict(prev_kwargs)
+            for k, v in kwargs.items():
+                assert k not in new_kwargs
+                new_kwargs[k] = v
+
+            def is_complete():
+                if num_positional_only_params <= len(new_args):
+                    arg_keys = set(itertools.chain(position_to_param_key[:len(new_args)], new_kwargs))
+                    return arg_keys.issuperset(non_default_param_keys)
+                else:
+                    return False
+
+            if is_complete():
+                return func(*new_args, **new_kwargs)
+            else:
+                return make_curried(new_args, new_kwargs)
+        return curried
+
+    return make_curried(list(), dict())
+
+
 # def cache(func):
 #     """keep a cache of previous function calls.
 #     it's similar to functools.lru_cache"""
@@ -24,8 +96,9 @@ from . import filesys
 #     return cached_func
 
 
-def cache(func):
-    return functools.lru_cache(maxsize=None)(func)
+@curry
+def cache(func, maxsize=None):
+    return functools.lru_cache(maxsize)(func)
 
 
 def cached_property(func):
@@ -58,15 +131,6 @@ def unnecessary(func):
         return func(*args, **kwargs)
 
     return new_func
-
-
-def abstractfunction(func):
-    @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        raise NotImplementedError(
-            "The abstract function '{}' is not implemented".format(func.__name__))
-    return new_func
-
 
 
 # def load_after_save(file_path_arg_name, *, load_func, save_func):
@@ -146,70 +210,6 @@ def file_cache(file_path_arg_name='file_cache_path', *, save_fn=None, load_fn=No
 
 
 fcache = file_cache(format='extended_json_pretty')
-
-
-def curry(func):
-    '''
-    Example
-    >>> @curry
-    >>> def func(a, b, c, *, d, e, f=6, g=7):
-    >>>     return (a, b, c, d, e, f, g)
-    >>>
-    >>> print(func(1, 2, 3)(d=4, e=5))
-    >>> print(func(1, 2)(3)(d=4, e=5))
-    >>> print(func(1, 2, d=4)(3, e=5))
-    >>> print(func(1, 2, d=4)(3, e=5, f=66))
-    '''
-
-    signature = inspect.signature(func)
-    position_to_param_key = []
-    non_default_param_keys = set()
-    reading_positional_params = True
-    num_positional_only_params = 0
-    for name, param in signature.parameters.items():
-        if param.default is not inspect._empty:
-            reading_positional_params = False
-        else:
-            non_default_param_keys.add(name)
-            if param.kind is inspect._ParameterKind.KEYWORD_ONLY:
-                reading_positional_params = False
-            else:
-                assert reading_positional_params
-                # *args, **kwargs are disallowed
-                # assert param.kind not in {inspect._ParameterKind.VAR_POSITIONAL, inspect._ParameterKind.VAR_KEYWORD}
-                if param.kind is inspect._ParameterKind.POSITIONAL_ONLY:
-                    num_positional_only_params += 1
-                else:
-                    param.kind is inspect._ParameterKind.POSITIONAL_OR_KEYWORD
-                position_to_param_key.append(name)
-
-    def make_curried(prev_args, prev_kwargs):
-        def curried(*args, **kwargs):
-            new_args = list(prev_args)
-            for idx, arg in enumerate(args, len(prev_args)):
-                assert idx < len(position_to_param_key)
-                assert position_to_param_key[idx] not in prev_kwargs
-                new_args.append(arg)
-
-            new_kwargs = dict(prev_kwargs)
-            for k, v in kwargs.items():
-                assert k not in new_kwargs
-                new_kwargs[k] = v
-
-            def is_complete():
-                if num_positional_only_params <= len(new_args):
-                    arg_keys = set(itertools.chain(position_to_param_key[:len(new_args)], new_kwargs))
-                    return arg_keys.issuperset(non_default_param_keys)
-                else:
-                    return False
-
-            if is_complete():
-                return func(*new_args, **new_kwargs)
-            else:
-                return make_curried(new_args, new_kwargs)
-        return curried
-
-    return make_curried(list(), dict())
 
 
 # Register
