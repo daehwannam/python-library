@@ -146,7 +146,7 @@ def merge_dicts(dicts, merge_fn=None):
 
     >>> merge_dicts([dict(a=1, b=2), dict(a=10, c=30), dict(b=200, c=300)])
     {'a': [1, 10], 'b': [2, 200], 'c': [30, 300]}
-    
+
     >>> merge_dicts([dict(a=1, b=2), dict(a=10, c=30), dict(b=200, c=300)], merge_fn=set)
     {'a': {1, 10}, 'b': {200, 2}, 'c': {300, 30}}
     '''
