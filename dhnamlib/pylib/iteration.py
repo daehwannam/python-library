@@ -4,13 +4,30 @@ from .function import identity
 
 
 def unique(seq):
-    try:
-        length = len(seq)
-    except TypeError:
-        seq = tuple(seq)
-        length = len(seq)
-    assert length == 1, "the length of sequence is not 1"
-    return seq[0]
+    '''
+    >>> unique([10])
+    10
+    >>> unique([10, 20])
+    Traceback (most recent call last):
+        ...
+    Exception: the length of sequence is longer than 1
+    >>> unique([0])
+    0
+    >>> unique([])
+    Traceback (most recent call last):
+        ...
+    Exception: the length of sequence is 0
+    '''
+    count = 0
+    for elem in seq:
+        count += 1
+        if count > 1:
+            raise Exception("the length of sequence is longer than 1")
+    else:
+        if count == 1:
+            return elem
+        else:
+            raise Exception("the length of sequence is 0")
 
 
 def distinct_values(values):
