@@ -1,6 +1,7 @@
 
 import inspect
 import functools
+# from contextlib import contextmanager  # https://realpython.com/python-with-statement/#creating-function-based-context-managers
 
 # Scope
 # modified from https://stackoverflow.com/a/2002140/6710003
@@ -150,3 +151,18 @@ class _Placeholder:
 
     def get_value(self):
         return self.scope.__getattr__(self.name)
+
+
+# block
+class _Block:
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        pass
+
+
+block = _Block()

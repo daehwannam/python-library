@@ -296,3 +296,60 @@ class LazyValue:
             return self.register.memory[self.identifier](*args, **kwargs)
         else:
             raise Exception(Register._msg_not_registered(self.identifier))
+
+
+@curry
+def construct(construct_fn, func, /):
+    '''
+    Example
+
+    >>> @construct(dict)
+    ... def make_dict(key_seq, value_fn):
+    ...     for key in key_seq:
+    ...         yield key, value_fn(key)
+
+    >>> make_dict(range(5), str)
+    {0: '0', 1: '1', 2: '2', 3: '3', 4: '4'}
+    '''
+
+    @functools.wraps(func)
+    def decorated_func(*args, **kwargs):
+        return construct_fn(func(*args, **kwargs))
+
+    return decorated_func
+
+
+def variable(func):
+    '''
+    >>> @variable
+    ... def num_list():
+    ...    return [1, 2, 3, 4]
+
+    >>> num_list
+    [1, 2, 3, 4]
+    '''
+    return func()
+
+
+def attribute(obj):
+    '''
+    >>> class A:
+    ...     def __init__(self):
+    ...         @attribute(self)
+    ...         def num_list():
+    ...             return [1, 2, 3, 4]
+
+    >>> a = A()
+    >>> a.num_list
+    [1, 2, 3, 4]
+    '''
+
+    def decorator(func):
+        setattr(obj, func.__name__, func())
+        ns = inspect.stack()[1][0].f_locals
+        if func.__name__ in ns:
+            return ns[func.__name__]
+        else:
+            return None
+
+    return decorator

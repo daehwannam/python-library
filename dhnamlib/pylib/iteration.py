@@ -1,9 +1,60 @@
 
 import itertools
+from .function import identity
+
+
+def unique(seq):
+    try:
+        length = len(seq)
+    except TypeError:
+        seq = tuple(seq)
+        length = len(seq)
+    assert length == 1, "the length of sequence is not 1"
+    return seq[0]
+
+
+def distinct_values(values):
+    '''
+    >>> set([1, 2, 3, 1])
+    {1, 2, 3}
+    >>> set(distinct_values([1, 2, 3, 1]))
+    Traceback (most recent call last):
+        ...
+    AssertionError: value "1" is duplicated
+    '''
+    s = set()
+    for value in values:
+        assert value not in s, f'value "{value}" is duplicated'
+        s.add(value)
+        yield value
+
+
+def distinct_pairs(pairs, **kwargs):
+    '''
+    >>> dict([['a', 10], ['a', 20]], a=30, b=40)
+    {'a': 30, 'b': 40}
+    >>> dict(distinct_pairs([['a', 10], ['a', 20]], a=30, b=40))
+    Traceback (most recent call last):
+        ...
+    AssertionError: key "a" is duplicated
+
+    '''
+    keys = set()
+    for k, v in itertools.chain(pairs, kwargs.items()):
+        assert k not in keys, f'key "{k}" is duplicated'
+        keys.add(k)
+        yield k, v
 
 
 def dicts2pairs(*args):
-    """dictionaries to key-sequence pairs"""
+    '''
+    Dictionaries to key-sequence pairs.
+
+    Example:
+
+    >>> dict(dicts2pairs(dict(a=1, b=2), dict(a=10, b=20), dict(a=100, b=200)))
+    {'a': (1, 10, 100), 'b': (2, 20, 200)}
+    '''
     if not args:
         yield from ()
     else:
@@ -15,7 +66,15 @@ def dicts2pairs(*args):
 
 
 def pairs2dicts(**kargs):
-    """key-sequence pairs to dictionaries"""
+    '''
+    Key-sequence pairs to dictionaries.
+
+    Example:
+
+    >>> list(pairs2dicts(**{'a': (1, 10, 100), 'b': (2, 20, 200)}))
+    [{'a': 1, 'b': 2}, {'a': 10, 'b': 20}, {'a': 100, 'b': 200}]
+    '''
+
     if not kargs:
         yield from ()
     else:
@@ -61,9 +120,29 @@ def pairs2dicts(**kargs):
 #     print(dict_list == dict_list2)
 
 
+def merge_pairs(pairs, merge_fn=None):
+    '''
+    Example:
+
+    >>> merge_pairs([['a', 1], ['b', 2], ['a', 10], ['c', 30], ['b', 200], ['c', 300]])
+    {'a': [1, 10], 'b': [2, 200], 'c': [30, 300]}
+    
+    >>> merge_pairs([['a', 1], ['b', 2], ['a', 10], ['c', 30], ['b', 200], ['c', 300]], merge_fn=set)
+    {'a': {1, 10}, 'b': {200, 2}, 'c': {300, 30}}
+    '''
+
+    merged_dict = {}
+    for k, v in pairs:
+        merged_dict.setdefault(k, []).append(v)
+    if merge_fn is not None:
+        for k, v in merged_dict.items():
+            merged_dict[k] = merge_fn(v)
+    return merged_dict
+
+
 def merge_dicts(dicts, merge_fn=None):
     '''
-    e.g.
+    Example:
 
     >>> merge_dicts([dict(a=1, b=2), dict(a=10, c=30), dict(b=200, c=300)])
     {'a': [1, 10], 'b': [2, 200], 'c': [30, 300]}
@@ -71,14 +150,10 @@ def merge_dicts(dicts, merge_fn=None):
     >>> merge_dicts([dict(a=1, b=2), dict(a=10, c=30), dict(b=200, c=300)], merge_fn=set)
     {'a': {1, 10}, 'b': {200, 2}, 'c': {300, 30}}
     '''
-    merged_dict = {}
-    for dic in dicts:
-        for k, v in dic.items():
-            merged_dict.setdefault(k, []).append(v)
-    if merge_fn is not None:
-        for k, v in merged_dict.items():
-            merged_dict[k] = merge_fn(v)
-    return merged_dict
+
+    return merge_pairs(
+        ([k, v] for dic in dicts for k, v in dic.items()),
+        merge_fn=merge_fn)
 
 
 def all_same(seq):
@@ -98,7 +173,7 @@ def keys2values(coll, keys):
     return map(coll.__getitem__, keys)
 
 
-def get_values_from_pairs(attr_value_pairs, attr_list, key=lambda x: x, defaultvalue=None, defaultfunc=None, no_default=False):
+def get_values_from_pairs(attr_value_pairs, attr_list, key=identity, defaultvalue=None, defaultfunc=None, no_default=False):
     assert sum(arg is not None for arg in [defaultvalue, defaultfunc]) <= 1
 
     attr_set = set(attr_list)
@@ -127,20 +202,64 @@ def get_values_from_pairs(attr_value_pairs, attr_list, key=lambda x: x, defaultv
     return value_list
 
 
-def find(seq, target, key=lambda x: x, default=None):
-    for item in seq:
-        if key(item) == target:
-            return item
-    else:
-        return default
+NO_VALUE = object()
+FIND_FAIL_MESSAGE_FORMAT = 'the target value "{target}" cannot be found'
 
 
-def index(seq, target, key=lambda x: x, default=None):
-    for idx, item in enumerate(seq):
-        if key(item) == target:
-            return idx
+def _iter_idx_and_elem(seq, target, key=identity, default=NO_VALUE, test=None):
+    found = False
+    if test is None:
+        for idx, elem in enumerate(seq):
+            if key(elem) == target:
+                yield idx, elem
+                found = True
+        if not found:
+            if default is NO_VALUE:
+                raise Exception(FIND_FAIL_MESSAGE_FORMAT.format(target=target))
+            else:
+                yield default, default
     else:
-        return default
+        assert key is identity
+
+        for idx, elem in enumerate(seq):
+            if test(elem, target):
+                yield idx, elem
+                found = True
+        if not found:
+            if default is NO_VALUE:
+                raise Exception(FIND_FAIL_MESSAGE_FORMAT.format(target=target))
+            else:
+                yield default, default
+
+
+def find(seq, target, key=identity, default=NO_VALUE, test=None):
+    '''
+    >>> find(['a', 'b', 'c', 'd'], 'c')
+    'c'
+    >>> find(['a', 'b', 'c', 'd'], 'C', default='')
+    ''
+    >>> find(['a', 'b', 'c', 'd'], 'C', key=lambda elem: elem.upper())
+    'c'
+    >>> find(['a', 'b', 'c', 'd'], 'C', test=lambda elem, target: elem.upper() == target)
+    'c'
+    '''
+    idx, elem = next(_iter_idx_and_elem(seq, target, key=key, default=default, test=test))
+    return elem
+
+
+def index(seq, target, key=identity, default=NO_VALUE, test=None):
+    idx, elem = next(_iter_idx_and_elem(seq, target, key=key, default=default, test=test))
+    return idx
+
+
+def finditer(seq, target, key=identity, default=NO_VALUE, test=None):
+    for idx, elem in _iter_idx_and_elem(seq, target, key=key, default=default, test=test):
+        yield elem
+
+
+def indexiter(seq, target, key=identity, default=NO_VALUE, test=None):
+    for idx, elem in _iter_idx_and_elem(seq, target, key=key, default=default, test=test):
+        yield idx
 
 
 def any_value(seq, is_valid=bool):
