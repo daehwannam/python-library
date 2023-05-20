@@ -69,7 +69,7 @@ for name, obj in tuple(globals().items()):
 op_name_func_pairs = [['+', add],
                       ['-', sub],
                       ['*', mul],
-                      ['/', div]
+                      ['/', div],
                       ['=', operator.eq],
                       ['!=', operator.ne],
                       ['<', operator.lt],
