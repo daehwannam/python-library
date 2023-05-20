@@ -3,6 +3,10 @@ import itertools
 from .function import identity
 
 
+class NonUniqueException(Exception):
+    pass
+
+
 def unique(seq):
     '''
     >>> unique([10])
@@ -22,13 +26,21 @@ def unique(seq):
     for elem in seq:
         count += 1
         if count > 1:
-            raise Exception("the length of sequence is longer than 1")
+            raise NonUniqueException("the length of sequence is longer than 1")
     else:
         if count == 1:
             return elem
         else:
-            raise Exception("the length of sequence is 0")
+            raise NonUniqueException("the length of sequence is 0")
 
+
+def checkup(items, predicate, error_message=None):
+    for item in items:
+        if predicate(item):
+            yield item
+        else:
+            args = [] if error_message is None else [error_message]
+            raise Exception(*args)
 
 def distinct_values(values):
     '''
@@ -372,6 +384,50 @@ def chunk_sizes(total_num, num_chunks):
                 yield max_chunk_size - 1
     else:
         yield from itertools.repeat(total_num // num_chunks, num_chunks)
+
+
+def _max_idx_value_pairs(items, *, key=identity):
+    assert len(items) > 0
+
+    item_enum = enumerate(items)
+    first_idx, first_item = first_idx_item = next(item_enum)
+
+    max_idx_item_pairs = [first_idx_item]
+    max_key = key(first_item)
+
+    for idx_item_pair in item_enum:
+        idx, item = idx_item_pair
+        item_key = key(item)
+        if item_key > max_key:
+            max_idx_item_pairs = [idx_item_pair]
+            max_key = item_key
+        elif item_key < max_key:
+            pass
+        else:
+            assert item_key == max_key
+            max_idx_item_pairs.append(idx_item_pair)
+
+    return max_idx_item_pairs
+
+
+def maxall(items, *, key=identity):
+    idx_item_pairs = _max_idx_value_pairs(items, key=key)
+    indices, items = zip(*idx_item_pairs)
+    return items
+
+
+def minall(items, *, key=identity):
+    return maxall(items, key=lambda x: -key(x))
+
+
+def idxmaxall(items, *, key=identity):
+    idx_item_pairs = _max_idx_value_pairs(items, key=key)
+    indices, items = zip(*idx_item_pairs)
+    return indices
+
+
+def idxminall(items, *, key=identity):
+    return idxmaxall(items, key=lambda x: -key(x))
 
 
 def idxmax(items, *, key):

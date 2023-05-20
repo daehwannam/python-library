@@ -226,10 +226,10 @@ class Register:
     >>> print(name_fn('John', 'Smith'))
     '''
 
-    strategies = ['instant', 'lazy', 'conditional']
+    STRATEGIES = ('instant', 'lazy', 'conditional')
 
     def __init__(self, strategy='instant'):
-        assert strategy in self.strategies
+        assert strategy in self.STRATEGIES
         self.strategy = strategy
         self.memory = dict()
 
@@ -265,7 +265,7 @@ class Register:
         if strategy is None:
             strategy = self.strategy
         else:
-            assert strategy in self.strategies
+            assert strategy in self.STRATEGIES
 
         if (strategy == 'lazy') or (strategy == 'conditional' and identifier not in self.memory):
             registered = LazyValue(self, identifier)
