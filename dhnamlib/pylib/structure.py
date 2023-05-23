@@ -39,49 +39,28 @@ class AttrDict(dict):
 #         return obj
 
 
-def get_recursive_dict(obj, dict_cls=dict):
-    '''
-    Make a new object where `dict` objects are copied by `dict_cls`.
-    '''
+def clone_recursively(obj, dict_cls=None, coll_cls=None):
+    def get_dict_cls(obj):
+        if dict_cls is None:
+            return type(obj)
+        else:
+            return dict_cls
 
-    if issubclass(type(dict_cls), type) and isinstance(obj, dict_cls):
-        return obj
-    elif isinstance(obj, dict):
-        return dict_cls(
-            (k, get_recursive_dict(v, dict_cls))
-            for k, v in obj.items())
-    elif isinstance(obj, (list, tuple, set)):
-        return type(obj)(get_recursive_dict(elem, dict_cls) for elem in obj)
-    else:
-        return obj
+    def get_coll_cls(obj):
+        if coll_cls is None:
+            return type(obj)
+        else:
+            return coll_cls
 
+    def recurse(obj):
+        if isinstance(obj, dict):
+            return get_dict_cls(obj)([k, recurse(v)] for k, v in obj.items())
+        elif isinstance(obj, (list, tuple, set)):
+            return get_coll_cls(obj)(map(recurse, obj))
+        else:
+            return obj
 
-def get_recursive_coll(obj, coll_cls=list):
-    '''
-    Make a new object where a collection, such as list or tuple, are copied by `coll_cls`
-    '''
-
-    if isinstance(obj, (list, tuple, set)):
-        return coll_cls(map(get_recursive_coll, obj))
-    elif isinstance(obj, dict):
-        return coll_cls([get_recursive_coll(k), get_recursive_coll(v)]
-                        for k, v in obj.items())
-    else:
-        return obj
-
-
-def copy_recursive_coll(obj):
-    '''
-    Make a new object where a collection, such as list or tuple, are copied by the same class of the collection
-    '''
-
-    if isinstance(obj, (list, tuple, set)):
-        return type(obj)(map(copy_recursive_coll, obj))
-    elif isinstance(obj, dict):
-        return type(obj)([copy_recursive_coll(k), copy_recursive_coll(v)]
-                         for k, v in obj.items())
-    else:
-        return obj
+    return recurse(obj)
 
 
 class TreeStructure:
