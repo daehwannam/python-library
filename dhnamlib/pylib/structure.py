@@ -39,30 +39,6 @@ class AttrDict(dict):
 #         return obj
 
 
-def clone_recursively(obj, dict_cls=None, coll_cls=None):
-    def get_dict_cls(obj):
-        if dict_cls is None:
-            return type(obj)
-        else:
-            return dict_cls
-
-    def get_coll_cls(obj):
-        if coll_cls is None:
-            return type(obj)
-        else:
-            return coll_cls
-
-    def recurse(obj):
-        if isinstance(obj, dict):
-            return get_dict_cls(obj)([k, recurse(v)] for k, v in obj.items())
-        elif isinstance(obj, (list, tuple, set)):
-            return get_coll_cls(obj)(map(recurse, obj))
-        else:
-            return obj
-
-    return recurse(obj)
-
-
 class TreeStructure:
     @classmethod
     def create_root(cls, value, terminal=False):
@@ -353,15 +329,3 @@ def namedlist(typename, field_names):
     NamedList.__name__ = typename
     NamedList.__qualname__ = typename
     return NamedList
-
-    # A(x=1, y=2, z=3)
-
-
-def test_namedlist():
-    A = namedlist('A', 'x,    y    z')
-    a = A(1, z=3, y=2)
-    print(a.x)
-    a.x = 10
-    print(a[0])
-    print(A)
-    print(a)

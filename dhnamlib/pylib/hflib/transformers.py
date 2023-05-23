@@ -25,7 +25,7 @@ def all_default_special_tokens(tokenizer):
 
 def iter_default_non_special_tokens(tokenizer):
     # the output doesn't include added tokens
-    default_special_ids = set(tokenizer.default_special_ids)
+    default_special_ids = set(tokenizer.all_special_ids)
     for token_id in range(tokenizer.vocab_size):
         if token_id not in default_special_ids:
             special_token = tokenizer.convert_ids_to_tokens(token_id)

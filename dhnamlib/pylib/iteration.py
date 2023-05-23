@@ -185,6 +185,30 @@ def merge_dicts(dicts, merge_fn=None):
         merge_fn=merge_fn)
 
 
+def clone_recursively(obj, dict_cls=None, coll_cls=None):
+    def get_dict_cls(obj):
+        if dict_cls is None:
+            return type(obj)
+        else:
+            return dict_cls
+
+    def get_coll_cls(obj):
+        if coll_cls is None:
+            return type(obj)
+        else:
+            return coll_cls
+
+    def recurse(obj):
+        if isinstance(obj, dict):
+            return get_dict_cls(obj)([k, recurse(v)] for k, v in obj.items())
+        elif isinstance(obj, (list, tuple, set)):
+            return get_coll_cls(obj)(map(recurse, obj))
+        else:
+            return obj
+
+    return recurse(obj)
+
+
 def all_same(seq):
     first = True
     for item in seq:
@@ -203,6 +227,12 @@ def keys2values(coll, keys):
 
 
 def get_values_from_pairs(attr_value_pairs, attr_list, key=identity, defaultvalue=None, defaultfunc=None, no_default=False):
+    '''
+    Example:
+
+    >>> get_values_from_pairs([['a', 10], ['b', 20], ['c', 30]], ['b', 'a'])
+    [20, 10]
+    '''
     assert sum(arg is not None for arg in [defaultvalue, defaultfunc]) <= 1
 
     attr_set = set(attr_list)
@@ -291,20 +321,23 @@ def indexiter(seq, target, key=identity, default=NO_VALUE, test=None):
         yield idx
 
 
-def any_value(seq, is_valid=bool):
+def any_value(seq, is_valid=bool, default=NO_VALUE):
     for elem in seq:
         if is_valid(elem):
             return elem
     else:
-        return elem  # last value
+        if default is NO_VALUE:
+            raise Exception()
+        else:
+            return default
 
 
 def is_not_none(value):
     return value is not None
 
 
-def any_not_none(seq):
-    return any_value(seq, is_not_none)
+def any_not_none(seq, default=NO_VALUE):
+    return any_value(seq, is_valid=is_not_none, default=default)
 
 
 def is_iterable(it):
@@ -317,6 +350,17 @@ def is_iterable(it):
 
 
 class iterate:
+    '''
+    Example:
+
+    >>> iterator  = iterate(range(5))
+    >>> total = 0
+    >>> while iterator:
+    ...     total += next(iterator)
+    ...
+    >>> total
+    10
+    '''
     EMPTY = object()
 
     def __init__(self, coll):
@@ -343,7 +387,14 @@ class iterate:
 
 
 def erange(*args):
-    'extended range'
+    '''
+    Extended range.
+
+    Example:
+
+    >>> tuple(zip('abcdefg', erange(1, float('inf'))))
+    (('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6), ('g', 7))
+    '''
 
     start = 0
     step = 1
@@ -363,6 +414,12 @@ def erange(*args):
 
 
 def nest(first, *others):
+    '''
+    Example:
+
+    >>> tuple(nest(range(2), 'abc'))
+    ((0, 'a'), (0, 'b'), (0, 'c'), (1, 'a'), (1, 'b'), (1, 'c'))
+    '''
     if others:
         for first_item in first:
             for other_items in nest(*others):
@@ -373,6 +430,15 @@ def nest(first, *others):
 
 
 def chunk_sizes(total_num, num_chunks):
+    '''
+    Example:
+
+    >>> chunks = tuple(chunk_sizes(20, 6))
+    >>> chunks
+    (4, 4, 3, 3, 3, 3)
+    >>> sum(chunks)
+    20
+    '''
     assert total_num >= num_chunks
 
     if total_num % num_chunks > 0:
@@ -446,6 +512,16 @@ def idxmin(items, *, key):
 
 
 def replace_with_last(items, idx):
+    '''
+    Example:
+
+    >>> items
+    ['a', 'b', 'c', 'd', 'e', 'f']
+    >>> replace_with_last(items, 1)
+    'b'
+    >>> items
+    ['a', 'f', 'c', 'd', 'e']
+    '''
     item = items[idx]
     items[idx] = items[-1]
     items.pop()
@@ -453,6 +529,12 @@ def replace_with_last(items, idx):
 
 
 def split_by_indices(seq, indices):
+    '''
+    Example:
+
+    >>> tuple(split_by_indices(tuple(range(20)), [5, 15]))
+    ((0, 1, 2, 3, 4), (5, 6, 7, 8, 9, 10, 11, 12, 13, 14), (15, 16, 17, 18, 19))
+    '''
     last_idx = 0
     for idx in indices:
         yield seq[last_idx: idx]
@@ -460,11 +542,21 @@ def split_by_indices(seq, indices):
     yield seq[last_idx:]
 
 
-def partition(seq, n, strict=True, fill_value=None):
+def partition(seq, n, fill_value=NO_VALUE):
     # Similar to Hy's partition
     # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
+    '''
+    Example:
 
-    assert not strict or fill_value is None
+    >>> tuple(partition('abcdefgh', 2))
+    (('a', 'b'), ('c', 'd'), ('e', 'f'), ('g', 'h'))
+    >>> tuple(partition('abcdefg', 2, fill_value=None))
+    (('a', 'b'), ('c', 'd'), ('e', 'f'), ('g', None))
+    '''
+
+    strict = fill_value is NO_VALUE
+
+    # assert not strict or fill_value is None
     it = iter(seq)
     remaining = True
 
@@ -491,12 +583,19 @@ def partition(seq, n, strict=True, fill_value=None):
                 items.extend(get_next_item() for _ in range(n - 1))
             yield tuple(items)
         else:
+            yield from ()
             break
 
 
 def flatten(coll, coll_type=None):
     # Similar to Hy's flatten
     # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
+    '''
+    Example:
+
+    >>> flatten([0, [1, 2, [3, [4, 5], 6], 7, 8], 9])
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    '''
 
     if coll_type is None:
         coll_type = type(coll)
@@ -517,6 +616,12 @@ def flatten(coll, coll_type=None):
 
 
 def chainelems(coll):
+    '''
+    Example:
+
+    >>> tuple(chainelems([[1, 2, 3], 'abcdef', 'ABCDEF']))
+    (1, 2, 3, 'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F')
+    '''
     for elem in coll:
         for item in elem:
             yield item

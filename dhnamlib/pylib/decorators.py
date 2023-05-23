@@ -6,7 +6,7 @@ import itertools
 from . import filesys
 
 
-def curry(func):
+def curry(func, *args, **kwargs):
     '''
     Example
     >>> @curry
@@ -75,7 +75,7 @@ def curry(func):
                 return make_curried(new_args, new_kwargs)
         return curried
 
-    return make_curried(list(), dict())
+    return make_curried(args, kwargs)
 
 
 # def cache(func):
@@ -237,14 +237,13 @@ class Register:
     def _normalize_identifier(identifier):
         if isinstance(identifier, list):
             identifier = tuple(identifier)
-        else:
-            return identifier
+        return identifier
 
     @curry
     def __call__(self, identifier, obj):
         identifier = self._normalize_identifier(identifier)
 
-        assert identifier not in self.memory
+        assert identifier not in self.memory, f'"{identifier}" is already registered.'
         self.memory[identifier] = obj
         return obj
 
