@@ -40,6 +40,10 @@ class AttrDict(dict):
 
 
 def get_recursive_dict(obj, dict_cls=dict):
+    '''
+    Make a new object where `dict` objects are copied by `dict_cls`.
+    '''
+
     if issubclass(type(dict_cls), type) and isinstance(obj, dict_cls):
         return obj
     elif isinstance(obj, dict):
@@ -53,6 +57,10 @@ def get_recursive_dict(obj, dict_cls=dict):
 
 
 def get_recursive_coll(obj, coll_cls=list):
+    '''
+    Make a new object where a collection, such as list or tuple, are copied by `coll_cls`
+    '''
+
     if isinstance(obj, (list, tuple, set)):
         return coll_cls(map(get_recursive_coll, obj))
     elif isinstance(obj, dict):
@@ -63,6 +71,10 @@ def get_recursive_coll(obj, coll_cls=list):
 
 
 def copy_recursive_coll(obj):
+    '''
+    Make a new object where a collection, such as list or tuple, are copied by the same class of the collection
+    '''
+
     if isinstance(obj, (list, tuple, set)):
         return type(obj)(map(copy_recursive_coll, obj))
     elif isinstance(obj, dict):
@@ -259,7 +271,17 @@ def camel_to_snake(name):
 
 
 class abidict(dict):
-    'Asymmetry bidirectional dictionary'
+    '''
+    Asymmetry bidirectional dictionary
+
+    Example:
+
+    >>> dic = abidict(a=10, b=20, c=10)
+    >>> dic
+    {'a': 10, 'b': 20, 'c': 10}
+    >>> dic.inverse
+    {10: {'c', 'a'}, 20: {'b'}}
+    '''
 
     def __init__(self, *args, **kwargs):
         super(abidict, self).__init__(*args, **kwargs)
@@ -288,6 +310,24 @@ sep_pattern = re.compile('[ ,]+')
 
 
 def namedlist(typename, field_names):
+    '''
+    Example:
+
+    >>> A = namedlist('A', 'x,    y    z')
+    >>> A
+    <class 'dhnamlib.pylib.structure.A'>
+    >>> a = A(1, z=3, y=2)
+    >>> a
+    A(x=1, y=2, z=3)
+    >>> a.x
+    1
+    >>> a.x = 10
+    >>> a[0]
+    10
+    >>> a
+    A(x=10, y=2, z=3)
+    '''
+
     if not isinstance(field_names, (list, tuple)):
         field_names = sep_pattern.split(field_names)
     name_to_idx_dict = dict(map(reversed, enumerate(field_names)))
