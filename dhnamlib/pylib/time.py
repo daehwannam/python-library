@@ -34,8 +34,35 @@ def time_limit_example2():
 
 
 class TimeMeasure:
+    '''
+    Example
+    >>> tm = TimeMeasure()
+    >>> tm.check()
+    >>> type(tm.elapse())
+    <class 'float'>
+
+    >>> with TimeMeasure() as tm:
+    ...   time.sleep(2)
+    ...
+    >>> abs(tm.interval - 2) < 0.1
+    True
+    '''
+
     def check(self):
+        "Update a checkpoint."
         self.checkpoint = time.time()
 
-    def elapsed(self):
+    def elapse(self):
+        "Elapse time (seconds) from the last checkpoint."
         return time.time() - self.checkpoint
+
+    def __enter__(self):
+        self.check()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self._interval = self.elapse()
+
+    @property
+    def interval(self):
+        return self._interval

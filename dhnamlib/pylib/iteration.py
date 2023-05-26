@@ -1,10 +1,8 @@
 
 import itertools
 from .function import identity
-
-
-class NonUniqueException(Exception):
-    pass
+from .constant import NO_VALUE
+from .exception import NonUniqueValueError, DuplicateValueError
 
 
 def unique(seq):
@@ -26,21 +24,27 @@ def unique(seq):
     for elem in seq:
         count += 1
         if count > 1:
-            raise NonUniqueException("the length of sequence is longer than 1")
+            raise NonUniqueValueError("the length of sequence is longer than 1")
     else:
         if count == 1:
             return elem
         else:
-            raise NonUniqueException("the length of sequence is 0")
+            raise NonUniqueValueError("the length of sequence is 0")
 
 
-def checkup(items, predicate, error_message=None):
+def checkup(items, *, predicate):
+    '''
+    >>> tuple(checkup([1, 3, 5, 7, 9, 10], predicate=lambda x: x % 2 == 1))
+    Traceback (most recent call last):
+        ...
+    Exception: 10 does not satisfy the predicate
+    '''
+
     for item in items:
         if predicate(item):
             yield item
         else:
-            args = [] if error_message is None else [error_message]
-            raise Exception(*args)
+            raise Exception(f'{item} does not satisfy the predicate')
 
 def distinct_values(values):
     '''
@@ -53,7 +57,8 @@ def distinct_values(values):
     '''
     s = set()
     for value in values:
-        assert value not in s, f'value "{value}" is duplicated'
+        if value in s:
+            raise DuplicateValueError(f'value "{value}" is duplicated')
         s.add(value)
         yield value
 
@@ -70,7 +75,8 @@ def distinct_pairs(pairs, **kwargs):
     '''
     keys = set()
     for k, v in itertools.chain(pairs, kwargs.items()):
-        assert k not in keys, f'key "{k}" is duplicated'
+        if k in keys:
+            raise DuplicateValueError(f'key "{k}" is duplicated')
         keys.add(k)
         yield k, v
 
@@ -261,7 +267,6 @@ def get_values_from_pairs(attr_value_pairs, attr_list, key=identity, defaultvalu
     return value_list
 
 
-NO_VALUE = object()
 FIND_FAIL_MESSAGE_FORMAT = 'the target value "{target}" cannot be found'
 
 
@@ -327,7 +332,7 @@ def any_value(seq, is_valid=bool, default=NO_VALUE):
             return elem
     else:
         if default is NO_VALUE:
-            raise Exception()
+            raise Exception('no value is satisfied')
         else:
             return default
 
@@ -613,6 +618,35 @@ def flatten(coll, coll_type=None):
 
     recurse(coll)
     return flattened
+
+
+def firstelem(coll):
+    # Similar to Hy's first
+    # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
+    '''
+    Example:
+
+    >>> firstelem(x for x in range(5))
+    0
+    '''
+    return next(iter(coll))
+
+
+def lastelem(coll):
+    # Similar to Hy's last
+    # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
+    '''
+    Example:
+
+    >>> lastelem(x for x in range(5))
+    4
+    '''
+    try:
+        return next(reversed(coll))
+    except TypeError:
+        for elem in coll:
+            pass
+        return elem
 
 
 def chainelems(coll):

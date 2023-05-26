@@ -1,6 +1,8 @@
 
 import re
 import warnings
+from .iteration import distinct_pairs
+from .exception import DuplicateValueError
 
 
 class AttrDict(dict):
@@ -223,6 +225,45 @@ def camel_to_symbol(name):
 def camel_to_snake(name):
     s1 = first_cap_re.sub(r'\1-\2', name)
     return all_cap_re.sub(r'\1-\2', s1).lower()
+
+
+class bidict(dict):
+    '''
+    Bidirectional dictionary
+
+    Example:
+
+    >>> dic = bidict(a=10, b=20, c=30)
+    >>> dic
+    {'a': 10, 'b': 20, 'c': 30}
+    >>> dic.inverse
+    {10: 'a', 20: 'b', 30: 'c'}
+    '''
+
+    def __init__(self, *args, **kwargs):
+        try:
+            super().__init__(*args, **kwargs)
+            self.inverse = dict(distinct_pairs(map(reversed, self.items())))
+        except DuplicateValueError:
+            raise DuplicateValueError
+
+    def __setitem__(self, key, value):
+        if value in self.inverse:
+            raise DuplicateValueError(
+                f'tried to map a key {repr(key)} to value {repr(value)} which is already paired with key {repr(self.inverse[value])}')
+        else:
+            if key in self:
+                self._del_inverse_item(key)
+            self.inverse[value] = key
+            super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        self._del_inverse_item(key)
+        super().__delitem__(key)
+
+    def _del_inverse_item(self, key):
+        value = self[key]
+        del self.inverse[value]
 
 
 class abidict(dict):

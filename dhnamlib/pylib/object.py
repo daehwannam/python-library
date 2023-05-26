@@ -1,4 +1,7 @@
 
+from .constant import NO_VALUE
+
+
 def getattr_or_default(obj, attr, default_value=None):
     if hasattr(obj, attr):
         return getattr(obj, attr)
@@ -24,3 +27,25 @@ def get_nested_item(obj, *keys, default_value=None):
         else:
             return default_value
     return obj
+
+
+def getitem(obj, key, default_value=NO_VALUE):
+    '''
+    Example:
+
+    >>> getitem('abcde', 1, 'X')
+    'b'
+    >>> getitem('abcde', 10, 'X')
+    'X'
+    >>> getitem(dict(a=1, b=2, c=3), 'b', -1)
+    2
+    >>> getitem(dict(a=1, b=2, c=3), 'x', -1)
+    -1
+    '''
+    try:
+        return obj.__getitem__(key)
+    except (IndexError, KeyError) as e:
+        if default_value is NO_VALUE:
+            raise e
+        else:
+            return default_value
