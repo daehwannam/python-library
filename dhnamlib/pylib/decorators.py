@@ -127,7 +127,7 @@ def unnecessary(func):
         nonlocal called
         if not called:
             called = True
-            print("Unneccessary function {} is called.".format(func.__name__))
+            raise Exception("Unneccessary function {} is called.".format(func.__name__))
         return func(*args, **kwargs)
 
     return new_func
