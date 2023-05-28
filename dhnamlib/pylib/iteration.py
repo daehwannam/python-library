@@ -12,13 +12,13 @@ def unique(seq):
     >>> unique([10, 20])
     Traceback (most recent call last):
         ...
-    Exception: the length of sequence is longer than 1
+    dhnamlib.pylib.exception.NonUniqueValueError: the length of sequence is longer than 1
     >>> unique([0])
     0
     >>> unique([])
     Traceback (most recent call last):
         ...
-    Exception: the length of sequence is 0
+    dhnamlib.pylib.exception.NonUniqueValueError: the length of sequence is 0
     '''
     count = 0
     for elem in seq:
@@ -53,7 +53,7 @@ def distinct_values(values):
     >>> set(distinct_values([1, 2, 3, 1]))
     Traceback (most recent call last):
         ...
-    AssertionError: value "1" is duplicated
+    dhnamlib.pylib.exception.DuplicateValueError: value "1" is duplicated
     '''
     s = set()
     for value in values:
@@ -70,7 +70,7 @@ def distinct_pairs(pairs, **kwargs):
     >>> dict(distinct_pairs([['a', 10], ['a', 20]], a=30, b=40))
     Traceback (most recent call last):
         ...
-    AssertionError: key "a" is duplicated
+    dhnamlib.pylib.exception.DuplicateValueError: key "a" is duplicated
 
     '''
     keys = set()
@@ -520,6 +520,7 @@ def replace_with_last(items, idx):
     '''
     Example:
 
+    >>> items = ['a', 'b', 'c', 'd', 'e', 'f']
     >>> items
     ['a', 'b', 'c', 'd', 'e', 'f']
     >>> replace_with_last(items, 1)

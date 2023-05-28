@@ -2,6 +2,7 @@
 import functools
 import inspect
 import itertools
+import warnings
 
 from . import filesys
 
@@ -119,6 +120,17 @@ def cached_property(func):
 #     return decorated_func
 
 
+def deprecated(func):
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        # https://docs.python.org/3/library/warnings.html
+        warnings.warn('Deprecated function {} is called.'.format(func.__name__),
+                      DeprecationWarning)
+        return func(*args, **kwargs)
+
+    return new_func
+
+
 def unnecessary(func):
     called = False
 
@@ -127,7 +139,7 @@ def unnecessary(func):
         nonlocal called
         if not called:
             called = True
-            raise Exception("Unneccessary function {} is called.".format(func.__name__))
+            print("Unneccessary function {} is called.".format(func.__name__))
         return func(*args, **kwargs)
 
     return new_func
