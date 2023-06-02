@@ -4,11 +4,11 @@ import doctest
 import importlib
 import argparse
 
-def run_test():
+def run_doctest():
     '''
     Example:
 
-    $ python -m dhnamlib.pylib.test -v dhnamlib.pylib.iteration
+    $ python -m dhnamlib.pylib.doctesting -v dhnamlib.pylib.iteration
     '''
 
     # This code is modified from doctest._test
@@ -48,4 +48,4 @@ def run_test():
 
 
 if __name__ == "__main__":
-    sys.exit(run_test())
+    sys.exit(run_doctest())

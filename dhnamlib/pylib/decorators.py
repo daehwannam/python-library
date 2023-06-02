@@ -106,6 +106,27 @@ def cached_property(func):
     return property(cache(func))
 
 
+def id_cache(func):
+    """
+    Keep a cache of previous function calls.
+    It's similar to functools.lru_cache, but use IDs of arguments for computing keys.
+    """
+
+    cache_memory = {}
+
+    @functools.wraps(func)
+    def cached_func(*args, **kwargs):
+        cache_key = tuple(itertools.chain(map(id, args), sorted((k, id(v)) for k, v in kwargs.items())))
+        if cache_key not in cache_memory:
+            cache_memory[cache_key] = func(*args, **kwargs)
+        return cache_memory[cache_key]
+
+    cached_func.cache = cache_memory
+
+    return cached_func
+
+
+
 # def singleton(func):
 #     @functools.wraps(func)
 #     def decorated_func(*args, **kwargs):

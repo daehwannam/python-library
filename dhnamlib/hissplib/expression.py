@@ -5,6 +5,7 @@ MAIN = '__main__'
 backquoted_symbol_prefixes = [
     f'{MAIN}{MAYBE}',
     f'{MAIN}..',
+    'builtins..',
 ]
 
 def remove_backquoted_symbol_prefixes(expr):
