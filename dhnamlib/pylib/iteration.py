@@ -603,6 +603,8 @@ def flatten(coll, coll_type=None):
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     '''
 
+    assert not isinstance(coll, str), 'str type input raises RecursionError'
+
     if coll_type is None:
         coll_type = type(coll)
     elif isinstance(coll_type, list):

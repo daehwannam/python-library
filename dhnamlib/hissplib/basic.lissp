@@ -1,0 +1,9 @@
+
+(hissp.basic.._macro_.prelude)
+
+
+(defmacro el-let (pairs : :* body)
+  "Creates local variables. Similar to `let` of Emacs Lisp"
+  (let (concat-pairs (tuple (itertools..chain : :* pairs)))
+    `((lambda (: ,@concat-pairs)
+        ,@body))))

@@ -1,5 +1,6 @@
 
 import inspect
+from hissp.munger import munge
 
 
 all_macro_import_code = \
@@ -41,14 +42,25 @@ def prelude():
     exec(prelude_code, globals)
 
 
-def load_macro(module, macro_names):
+def load_macro(module, macro_name, alias):
+    globals = inspect.stack()[1][0].f_globals
+    global_macro = globals['_macro_']
+    munged_macro_name = munge(macro_name)
+    munged_alias = munge(alias)
+    setattr(global_macro,
+            munged_alias,
+            getattr(module._macro_, munged_macro_name))
+
+
+def load_macros(module, macro_names):
     globals = inspect.stack()[1][0].f_globals
     global_macro = globals['_macro_']
     for macro_name in macro_names:
+        munged_macro_name = munge(macro_name)
         setattr(global_macro,
-                macro_name,
-                getattr(module._macro_, macro_name))
+                munged_macro_name,
+                getattr(module._macro_, munged_macro_name))
 
 
 def load_all_macros(module):
-    load_macro(module, dir(module._macro_))
+    load_macros(module, dir(module._macro_))
