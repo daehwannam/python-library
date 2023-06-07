@@ -237,6 +237,8 @@ def masked_log_softmax(input, mask=None, *args, **kwargs):
 def pad_sequence(sequence, pad, max_length=None):
     'Pad nested sequence'
 
+    from .. import iteration
+
     dim = 0
     seq = sequence
     while isinstance(seq, (tuple, list)):
@@ -255,7 +257,7 @@ def pad_sequence(sequence, pad, max_length=None):
 
         max_length = find_max_length(sequence, 1)
 
-    padded_sequence = structutil.get_recursive_coll(sequence, coll_cls=list)
+    padded_sequence = iteration.apply_recursively(sequence, coll_fn=list)
 
     def pad_recursively(seq, depth):
         if depth < dim:
@@ -304,3 +306,13 @@ def seed_everything(seed):
     # some cudnn methods can be random even after fixing the seed
     # unless you tell it to be deterministic
     torch.backends.cudnn.deterministic = True
+
+
+def disable_benchmark():
+    # `torch.backends.cudnn.benchmark` enhances speed when input size is identical,
+    # but the speed is reduced for dataset with various input sizes.
+    #
+    # The value if False by default
+    # https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936/8
+
+    torch.backends.cudnn.benchmark = False
