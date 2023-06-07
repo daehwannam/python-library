@@ -35,16 +35,24 @@ def time_limit_example2():
 
 class TimeMeasure:
     '''
-    Example
+    Example:
+
     >>> tm = TimeMeasure()
     >>> tm.check()
     >>> type(tm.elapse())
     <class 'float'>
 
     >>> with TimeMeasure() as tm:
-    ...   time.sleep(2)
+    ...   time.sleep(0.5)
     ...
-    >>> abs(tm.interval - 2) < 0.1
+    >>> abs(tm.interval - 0.5) < 0.1
+    True
+
+    >>> tm = TimeMeasure()
+    >>> with tm:
+    ...   time.sleep(0.5)
+    ...
+    >>> abs(tm.interval - 0.5) < 0.1
     True
     '''
 

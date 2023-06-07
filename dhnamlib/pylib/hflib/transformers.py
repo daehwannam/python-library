@@ -1,4 +1,5 @@
 
+from dhnamlib.pylib.iteration import apply_recursively
 
 def iter_token_ids(tokenizer):
     return range(len(tokenizer))
@@ -32,3 +33,18 @@ def iter_default_non_special_tokens(tokenizer):
             assert special_token is not None
             assert isinstance(special_token, str)
             yield special_token
+
+
+def join_tokens(
+        tokenizer,
+        tokens,
+        skip_special_tokens: bool = False,
+        clean_up_tokenization_spaces: bool = True,
+        **kwargs):
+    token_ids = apply_recursively(tokens, coll_fn=tokenizer.convert_tokens_to_ids)
+
+    return tokenizer.decode(
+        token_ids,
+        skip_special_tokens=skip_special_tokens,
+        clean_up_tokenization_spaces=clean_up_tokenization_spaces,
+        **kwargs)

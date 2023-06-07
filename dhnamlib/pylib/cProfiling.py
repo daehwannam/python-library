@@ -3,6 +3,11 @@ import inspect
 
 
 def run_context(statement, globals=None, locals=None, filename=None, sort=-1):
+    '''
+    Example:
+
+    >>> run_context('print("Replace this with a time-consuming function call")', sort='cumtime')  # doctest: +SKIP
+    '''
     # Related:
     # - https://stackoverflow.com/a/8682791
     # - https://stackoverflow.com/a/4492582

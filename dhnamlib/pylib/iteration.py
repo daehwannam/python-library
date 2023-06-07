@@ -191,18 +191,18 @@ def merge_dicts(dicts, merge_fn=None):
         merge_fn=merge_fn)
 
 
-def clone_recursively(obj, dict_cls=None, coll_cls=None):
+def apply_recursively(obj, dict_fn=None, coll_fn=None):
     def get_dict_cls(obj):
-        if dict_cls is None:
+        if dict_fn is None:
             return type(obj)
         else:
-            return dict_cls
+            return dict_fn
 
     def get_coll_cls(obj):
-        if coll_cls is None:
+        if coll_fn is None:
             return type(obj)
         else:
-            return coll_cls
+            return coll_fn
 
     def recurse(obj):
         if isinstance(obj, dict):

@@ -3,6 +3,7 @@ import functools
 import inspect
 import itertools
 import warnings
+from contextlib import ContextDecorator
 
 from . import filesys
 
@@ -11,13 +12,17 @@ def curry(func, *args, **kwargs):
     '''
     Example
     >>> @curry
-    >>> def func(a, b, c, *, d, e, f=6, g=7):
-    >>>     return (a, b, c, d, e, f, g)
+    ... def func(a, b, c, *, d, e, f=6, g=7):
+    ...     return (a, b, c, d, e, f, g)
     >>>
     >>> print(func(1, 2, 3)(d=4, e=5))
+    (1, 2, 3, 4, 5, 6, 7)
     >>> print(func(1, 2)(3)(d=4, e=5))
+    (1, 2, 3, 4, 5, 6, 7)
     >>> print(func(1, 2, d=4)(3, e=5))
+    (1, 2, 3, 4, 5, 6, 7)
     >>> print(func(1, 2, d=4)(3, e=5, f=66))
+    (1, 2, 3, 4, 5, 66, 7)
     '''
 
     # [Note]
@@ -192,31 +197,37 @@ save_load_pair_dict = dict(
 )
 
 
-def file_cache(file_path_arg_name='file_cache_path', *, save_fn=None, load_fn=None, format='extended_json_pretty'):
+FILE_CACHE_DEFAULT_FORMAT = 'extended_json_pretty'
+
+
+def file_cache(file_path_arg_name='file_cache_path', *, save_fn=None, load_fn=None, format=None):
     '''
     Example 1
     >>> from dhnamlib.pylib.filesys import json_save, json_load
     >>> from dhnamlib.pylib.decorators import file_cache
     >>>
     >>> @file_cache('cache_path', save_fn=json_save, load_fn=json_load)
-    >>> def make_dict_and_print(*pairs):
-    >>>     d = dict(pairs)
-    >>>     print('make_dict_and_print is called')
-    >>>     return d
+    ... def make_dict_and_print(*pairs):
+    ...     d = dict(pairs)
+    ...     print('make_dict_and_print is called')
+    ...     return d
     >>>
-    >>> pairs = [['a', 2], ['b', 4], ['c', 6]]
-    >>> d1 = make_dict_and_print(*pairs, cache_path='./path/to/cache.json')
-    >>> d2 = make_dict_and_print(*pairs, cache_path='./path/to/cache.json')
-    >>> print(d1 == d2)
+    >>> pairs = [['a', 2], ['b', 4], ['c', 6]]                                 # doctest: +SKIP
+    >>> d1 = make_dict_and_print(*pairs, cache_path='./path/to/cache.json')    # doctest: +SKIP
+    >>> d2 = make_dict_and_print(*pairs, cache_path='./path/to/cache.json')    # doctest: +SKIP
+    >>> print(d1 == d2)                                                        # doctest: +SKIP
 
     Example 2
     >>> @file_cache(format='json')
-    >>> def make_dict_and_print(*pairs):
-    >>>     d = dict(pairs)
-    >>>     print('make_dict_and_print is called')
-    >>>     return d
+    ... def make_dict_and_print(*pairs):
+    ...     d = dict(pairs)
+    ...     print('make_dict_and_print is called')
+    ...     return d
     '''
     import os
+
+    if format is save_fn is load_fn is None:
+        format = FILE_CACHE_DEFAULT_FORMAT
 
     if format is not None:
         assert save_fn is load_fn is None
@@ -242,7 +253,7 @@ def file_cache(file_path_arg_name='file_cache_path', *, save_fn=None, load_fn=No
     return file_cache_decorator
 
 
-fcache = file_cache(format='extended_json_pretty')
+fcache = file_cache(format=FILE_CACHE_DEFAULT_FORMAT)
 
 
 # Register
@@ -253,10 +264,11 @@ class Register:
     >>> name_fn = register.retrieve('name-fn')
     >>>
     >>> @register('name-fn')
-    >>> def full_name(first, last):
-    >>>     return ' '.join([first, last])
+    ... def full_name(first, last):
+    ...     return ' '.join([first, last])
     >>>
     >>> print(name_fn('John', 'Smith'))
+    John Smith
     '''
 
     STRATEGIES = ('instant', 'lazy', 'conditional')
@@ -385,3 +397,39 @@ def attribute(obj):
             return None
 
     return decorator
+
+
+class excepting(ContextDecorator):
+    '''
+    A decorator for exception handling.
+
+    Example:
+
+    >>> @excepting((TypeError, ValueError), lambda e: print(e))
+    ... @excepting(ZeroDivisionError, lambda e: print('oops'))
+    ... def bad_idea(x):
+    ...     return 1/x
+
+    >>> bad_idea(0)  # oops
+    oops
+    >>> bad_idea('spam')  # unsupported operand type(s) for /: 'int' and 'str'
+    unsupported operand type(s) for /: 'int' and 'str'
+    >>> bad_idea(1)  # 1.0
+    1.0
+
+    This code is copied from `here <https://hissp.readthedocs.io/en/v0.2.0/faq.html#but-i-need-to-handle-the-exception-if-and-only-if-it-was-raised-for-multiple-exception-types-or-i-need-to-get-the-exception-object>`_ .
+    '''
+
+    def __init__(self, catch, handler):
+        self.catch = catch
+        self.handler = handler
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exception, traceback):
+        if isinstance(exception, self.catch):
+            self.handler(exception)
+            # Return True to suppress the exception
+            # https://stackoverflow.com/a/43946444
+            return True

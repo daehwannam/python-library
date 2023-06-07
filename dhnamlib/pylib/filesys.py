@@ -181,7 +181,8 @@ def python_pretty_save(obj, path, **kwargs):
 
 
 def python_pretty_dump(obj, fp, **kwargs):
-    pprint_kwargs = dict(indent=4)
+    pprint_kwargs = dict(indent=1)  # default value
+    # pprint_kwargs = dict(indent=4)
     pprint_kwargs.update(kwargs)
     assert 'stream' not in pprint_kwargs
 
