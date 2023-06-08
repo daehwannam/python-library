@@ -1,4 +1,6 @@
 
+import json
+
 from hissp.compiler import MAYBE
 
 MAIN = '__main__'
@@ -19,3 +21,27 @@ def remove_backquoted_symbol_prefixes(expr):
         return tuple(map(remove_backquoted_symbol_prefixes, expr))
     else:
         return expr
+
+
+def repr_as_raw_str(expr: str):
+    '''
+    Example:
+
+    >>> repr_as_raw_str('some text here')
+    '"some text here"'
+    '''
+
+    return json.dumps(expr)
+
+def repr_as_hash_str(expr: str):
+    '''
+    Example:
+
+    >>> repr_as_hash_str('some text here')
+    '#"some text here"'
+    '''
+
+    # without '#' character, string becomes raw-string in Lissp (Hissp)
+    # #"text..." is called as Hash String in Lissp.
+
+    return '#' + json.dumps(expr)
