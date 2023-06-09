@@ -3,45 +3,49 @@ import inspect
 import functools
 # from contextlib import contextmanager  # https://realpython.com/python-with-statement/#creating-function-based-context-managers
 
+from .lazy import LazyEval
+
 # Scope
 # modified from https://stackoverflow.com/a/2002140/6710003
 
 class Scope:
     """
-    Example 1:
+    Example:
 
-    >>> scope = Scope()
+    >>> # Set the default values
+    >>> scope = Scope(a=100)
     >>>
-    >>> with scope(a=10, b=20):
-    ...     with scope(a=20, c= 30):
-    ...         print(scope.a, scope.b, scope.c)
-    ...     print(scope.a, scope.b)
-    20 20 30
-    10 20
-
-    Example 2:
-
-    >>> scope = Scope()
-    >>>
+    >>> # Placeholders as default arguments
+    >>> # e.g. explicit naming -> scope.ph.c / implicit naming -> scope.ph
     >>> @scope
-    >>> def func(x=scope.ph.a, y=scope.ph.b):
-    ...     return x + y
+    >>> def func(u, w, x=scope.ph.c, y=scope.ph, z=scope.ph):
+    ...     return u + w + x + y + z
     >>>
-    >>> with scope(a=10, b=20):
-    ...     print(func())
-    30
-
-    Example 3:
-
-    >>> scope = Scope()
+    >>> def my_sum(*args):
+    ...    print('Calling my_sum')
+    ...    return sum(args)
     >>>
-    >>> @scope
-    >>> def func(x=scope.ph, y=scope.ph):
-    ...     return x + y
-    >>>
-    >>> with scope(x=10, y=20):
-    ...     print(func())
-    30
+    >>> # Set values in a dynamic scope
+    >>> with scope(b=3, c=5, y=10, z=LazyEval(my_sum, 1, 2, 3, 4, 5)):
+    ...     print('Before the 1st function call')
+    ...     print(func(u=scope.a, w=scope.b))
+    ...     print('Before the 2nd function call')
+    ...     print(func(u=scope.a, w=scope.b))
+    ...     # Override value fo 'a' in the inner scope
+    ...     with scope(a=1000):
+    ...         print('Before the 3rd function call')
+    ...         print(func(u=scope.a, w=scope.b))
+    ...     print('Before the 4th function call')
+    ...     print(func(u=scope.a, w=scope.b))
+    Before the 1st function call
+    Calling my_sum
+    133
+    Before the 2nd function call
+    133
+    Before the 3rd function call
+    1033
+    Before the 4th function call
+    133
     """
     _setattr_enabled = True
 
@@ -58,10 +62,16 @@ class Scope:
         self._setattr_enabled = False
 
     def __getattr__(self, name):
+        if name in self._reserved_names:
+            raise Exception(_reserved_name_exceptoin_format_str.format(name=name))
         for scope in reversed(self._stack):
             if name in scope:
-                return scope[name]
-        raise AttributeError("no such variable in the scope")
+                value = scope[name]
+                if isinstance(value, LazyEval):
+                    return value.get()
+                else:
+                    return value
+        raise AttributeError(f'no such variable "{name}" in the scope')
 
     def __setattr__(self, name, value):
         if self._setattr_enabled:
@@ -70,9 +80,10 @@ class Scope:
             raise AttributeError("scope variables can only be set using `with Scope.let()`")
 
     def let(self, **kwargs):
+        # context manager for a dynamic scope
         for reserved_name in self._reserved_names:
             if reserved_name in kwargs:
-                raise Exception(f'"{reserved_name}" is a reserved name')
+                raise Exception(_reserved_name_exceptoin_format_str.format(name=reserved_name))
 
         return _ScopeBlock(self._stack, kwargs)
 
@@ -116,13 +127,18 @@ class Scope:
 
     def __call__(self, *args, **kwargs):
         if len(args) > 0:
+            # when used as a decorator
             assert len(args) == 1
             func = args[0]
             assert callable(func)
             assert len(kwargs) == 0
             return self.decorate(func)
         else:
+            # when used as a context manager
             return self.let(**kwargs)
+
+
+_reserved_name_exceptoin_format_str = '"{name} is a reserved name'
 
 
 class _ScopeBlock:
