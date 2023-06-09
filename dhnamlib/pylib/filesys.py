@@ -7,6 +7,11 @@ import pickle
 import logging
 import pprint
 
+try:
+    import jsonlines
+except ModuleNotFoundError:
+    pass
+
 
 def get_os_independent_path(path):
     return os.path.join(*path.split('/'))
@@ -192,6 +197,16 @@ def python_pretty_dump(obj, fp, **kwargs):
 def python_load(path, *args):
     assert len(args) <= 2  # for globals and locals
     return eval(read_text(path), *args)
+
+
+def jsonl_save(objects, path, **kwargs):
+    with jsonlines.open(path, mode='w') as writer:
+        for obj in objects:
+            writer.write(obj)
+
+def jsonl_load(path, **kwargs):
+    with jsonlines.open(path) as reader:
+        return tuple(reader)
 
 
 def make_logger(name, log_file_path=None, to_stdout=True, overwriting=False, format_str=None, level=None):
