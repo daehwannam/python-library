@@ -63,7 +63,7 @@ def distinct_values(values):
         yield value
 
 
-def distinct_pairs(pairs, **kwargs):
+def distinct_pairs(pairs=(), **kwargs):
     '''
     >>> dict([['a', 10], ['a', 20]], a=30, b=40)
     {'a': 30, 'b': 40}

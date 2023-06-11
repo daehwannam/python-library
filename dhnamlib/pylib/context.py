@@ -49,11 +49,12 @@ class Scope:
     """
     _setattr_enabled = True
 
-    def __init__(self, **kwargs):
+    def __init__(self, pairs=(), **kwargs):
         self._stack = []
-        if kwargs:
+        _dict = dict(pairs, **kwargs)
+        if _dict:
             # default values
-            self._stack.append(kwargs)
+            self._stack.append(_dict)
         self._reserved_names = ['ph']
 
         self.ph = _PlaceholderFactory(self)
@@ -77,15 +78,26 @@ class Scope:
         if self._setattr_enabled:
             super().__setattr__(name, value)
         else:
-            raise AttributeError("scope variables can only be set using `with Scope.let()`")
+            raise AttributeError("scope variables can only be set by `with Scope.let()` or `Scope.update`")
 
-    def let(self, **kwargs):
+    def let(self, pairs=(), **kwargs):
         # context manager for a dynamic scope
         for reserved_name in self._reserved_names:
             if reserved_name in kwargs:
                 raise Exception(_reserved_name_exceptoin_format_str.format(name=reserved_name))
 
-        return _ScopeBlock(self._stack, kwargs)
+        return _ScopeBlock(self._stack, pairs, kwargs)
+
+    def update(self, pairs=(), **kwargs):
+        self._stack[-1].update(pairs, **kwargs)
+
+    def items(self):
+        keys = set()
+        for scope in reversed(self._stack):
+            for k, v in scope.items():
+                if k not in keys:
+                    keys.add(k)
+                    yield k, v
 
     def decorate(self, func):
         signature = inspect.signature(func)
@@ -142,12 +154,12 @@ _reserved_name_exceptoin_format_str = '"{name} is a reserved name'
 
 
 class _ScopeBlock:
-    def __init__(self, stack, kwargs):
+    def __init__(self, stack, pairs, kwargs):
         self._stack = stack
-        self.kwargs = kwargs
+        self._dict = dict(pairs, **kwargs)
 
     def __enter__(self):
-        self._stack.append(self.kwargs)
+        self._stack.append(self._dict)
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         self._stack.pop()
