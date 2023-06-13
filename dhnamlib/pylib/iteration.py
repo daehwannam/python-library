@@ -232,6 +232,10 @@ def keys2values(coll, keys):
     return map(coll.__getitem__, keys)
 
 
+def keys2items(coll, keys):
+    return zip(keys, map(coll.__getitem__, keys))
+
+
 def get_values_from_pairs(attr_value_pairs, attr_list, key=identity, defaultvalue=None, defaultfunc=None, no_default=False):
     '''
     Example:

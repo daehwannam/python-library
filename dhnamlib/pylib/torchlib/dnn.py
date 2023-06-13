@@ -239,6 +239,8 @@ def pad_sequence(sequence, pad, max_length=None):
 
     from .. import iteration
 
+    assert isinstance(sequence, (tuple, list))
+
     dim = 0
     seq = sequence
     while isinstance(seq, (tuple, list)):
@@ -316,3 +318,14 @@ def disable_benchmark():
     # https://discuss.pytorch.org/t/what-does-torch-backends-cudnn-benchmark-do/5936/8
 
     torch.backends.cudnn.benchmark = False
+
+
+class SimpleDataset(torch.utils.data.Dataset):
+    def __init__(self, examples):
+        self.examples = examples
+
+    def __getitem__(self, index):
+        return self.examples[index]
+
+    def __len__(self):
+        return len(self.examples)
