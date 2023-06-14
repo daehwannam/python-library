@@ -1,6 +1,6 @@
 
 (import [..pylib [filesys]])
-(import [..pylib.decorators [*]])
+(import [..pylib.decoration [*]])
 
 (defn file-cache [file-path-arg-name &kwonly load-func save-func]
   (import os)

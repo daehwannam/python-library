@@ -3,7 +3,7 @@ import random
 import math
 
 from . import iteration as iter_util
-from .struct import AttrDict
+from .structure import AttrDict
 from collections import namedtuple
 
 

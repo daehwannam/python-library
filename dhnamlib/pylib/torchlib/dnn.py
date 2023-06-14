@@ -224,6 +224,15 @@ def masked_softmax(input, mask=None, *args, **kwargs):
 
 
 def masked_log_softmax(input, mask=None, *args, **kwargs):
+    '''
+    >>> tensor = torch.tensor([1,2,3,4], dtype=torch.float)
+    >>> masked_log_softmax(tensor, mask=[0, 1, 0, 1])
+    >>> log_probs = masked_log_softmax(tensor, [0, 1, 0, 1])
+    >>> log_probs                                             # doctest: +SKIP
+    tensor([   -inf, -2.1269,    -inf, -0.1269])              # doctest: +SKIP
+    >>> log_probs.exp()                                       # doctest: +SKIP
+    tensor([0.0000, 0.1192, 0.0000, 0.8808])                  # doctest: +SKIP
+    '''
     if mask is None:
         mask = torch.ones(input.shape, device=input.device)
     elif isinstance(mask, (list, tuple)):
@@ -235,7 +244,14 @@ def masked_log_softmax(input, mask=None, *args, **kwargs):
 
 
 def pad_sequence(sequence, pad, max_length=None):
-    'Pad nested sequence'
+    '''
+    Pad nested sequence. `sequence` can be multi-dimensional lists, such as 3D or 4D arrays.
+
+    >>> pad_sequence([[[1, 2, 3], [4, 5]],[[6, 7, 8, 9]]], pad=float('inf'))
+    [[[1, 2, 3, inf], [4, 5, inf, inf]], [[6, 7, 8, 9]]]
+    >>> pad_sequence([[[1, 2, 3], [4, 5]],[[6, 7, 8, 9]]], pad=float('inf'), max_length=6)
+    [[[1, 2, 3, inf, inf, inf], [4, 5, inf, inf, inf, inf]], [[6, 7, 8, 9, inf, inf]]]
+    '''
 
     from .. import iteration
 

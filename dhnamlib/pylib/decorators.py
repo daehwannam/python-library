@@ -204,7 +204,7 @@ def file_cache(file_path_arg_name='file_cache_path', *, save_fn=None, load_fn=No
     '''
     Example 1
     >>> from dhnamlib.pylib.filesys import json_save, json_load
-    >>> from dhnamlib.pylib.decorators import file_cache
+    >>> from dhnamlib.pylib.decoration import file_cache
     >>>
     >>> @file_cache('cache_path', save_fn=json_save, load_fn=json_load)
     ... def make_dict_and_print(*pairs):

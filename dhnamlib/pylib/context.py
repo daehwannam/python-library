@@ -4,6 +4,7 @@ import functools
 # from contextlib import contextmanager  # https://realpython.com/python-with-statement/#creating-function-based-context-managers
 
 from .lazy import LazyEval
+from .decoration import deprecated
 
 # Scope
 # modified from https://stackoverflow.com/a/2002140/6710003
@@ -18,7 +19,7 @@ class Scope:
     >>> # Placeholders as default arguments
     >>> # e.g. explicit naming -> scope.ph.c / implicit naming -> scope.ph
     >>> @scope
-    >>> def func(u, w, x=scope.ph.c, y=scope.ph, z=scope.ph):
+    ... def func(u, w, x=scope.ph.c, y=scope.ph, z=scope.ph):
     ...     return u + w + x + y + z
     >>>
     >>> def my_sum(*args):
@@ -78,7 +79,8 @@ class Scope:
         if self._setattr_enabled:
             super().__setattr__(name, value)
         else:
-            raise AttributeError("scope variables can only be set by `with Scope.let()` or `Scope.update`")
+            # raise AttributeError("scope variables can only be set by `with Scope.let()` or `Scope.update`")
+            raise AttributeError("scope variables can only be set by `with Scope.let()`")
 
     def let(self, pairs=(), **kwargs):
         # context manager for a dynamic scope
@@ -88,6 +90,7 @@ class Scope:
 
         return _ScopeBlock(self._stack, pairs, kwargs)
 
+    @deprecated
     def update(self, pairs=(), **kwargs):
         self._stack[-1].update(pairs, **kwargs)
 
@@ -183,6 +186,20 @@ class _Placeholder:
 
 # block
 class _Block:
+    '''
+    It's used only to indent code for readability.
+    It does not perform any additional operation.
+
+    Example:
+
+    >>> with block:
+    ...   numbers = list(range(5))
+    ...   numbers = [x * 2 for x in numbers]
+    ...
+    >>> print(numbers)
+    [0, 2, 4, 6, 8]
+    '''
+
     def __init__(self):
         pass
 

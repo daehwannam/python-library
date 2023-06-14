@@ -7,7 +7,7 @@ import signal
 from contextlib import contextmanager
 import linecache
 
-from . import decorators
+from . import decoration
 
 
 # import psutil
@@ -129,6 +129,6 @@ def print_exception():
     return get_exception_string()
 
 
-@decorators.cache
+@decoration.cache
 def print_warning(msg):
     print("Warning: {}".format(msg))

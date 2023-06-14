@@ -5,7 +5,7 @@ from functools import reduce
 import itertools
 from . import iteration as dhnam_iter
 
-# from .decorators import classproperty
+# from .decoration import classproperty
 
 
 def init_linked_list_class(cls):

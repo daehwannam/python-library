@@ -5,8 +5,8 @@ import heapq
 from collections import deque, defaultdict
 
 from . import min_max_heap
-from . import algorithms
-from .struct import namedlist
+from . import algorithm
+from .structure import namedlist
 
 
 class HeapPQ:
@@ -66,7 +66,7 @@ class LimitedPQ:
     def prune(self):
         if len(self.lst) > self.max_size:
             # self.lst.sort()
-            algorithms.quickselect(self.lst, self.max_size)
+            algorithm.quickselect(self.lst, self.max_size)
             del self.lst[-(len(self.lst) - self.max_size):]
 
     def __bool__(self):
@@ -97,7 +97,7 @@ class LimitedPQ:
 #         return len(self.heap) > 0
 
 
-class LRUSet:
+class FIFOSet:
     Unit = namedlist('Unit', 'item, valid')
 
     def __init__(self, max_size):
@@ -108,6 +108,7 @@ class LRUSet:
 
     def add(self, item):
         if item in self.unit_dict:
+            # old unit is no more valid
             self.unit_dict[item].valid = False
         elif self.size < self.max_size:
             self.size += 1
@@ -132,7 +133,31 @@ class LRUSet:
         return f'{self.__class__.__name__}(max_size={self.max_size}, {repr(set(self))})'
 
 
-class LRUDict:
+class FIFODict:
+    '''
+    Kepp most recently updated key-value pairs
+
+    Example:
+
+    >>> dic = FIFODict(3)
+    FIFODict(max_size=3, {})
+    >>> dic['a'] = 1
+    >>> dic['b'] = 2
+    >>> dic['c'] = 3
+    >>> dic
+    FIFODict(max_size=3, {'a': 1, 'b': 2, 'c': 3})
+    >>> dic['a'] = 4
+    >>> dic
+    FIFODict(max_size=3, {'a': 4, 'b': 2, 'c': 3})
+    >>> dic['d'] = 5
+    >>> dic
+    FIFODict(max_size=3, {'a': 4, 'c': 3, 'd': 5})
+    >>> dic['e'] = 5
+    >>> dic
+    FIFODict(max_size=3, {'a': 4, 'd': 5, 'e': 5})
+
+    '''
+
     Unit = namedlist('Unit', 'key, value, valid')
 
     def __init__(self, max_size):
@@ -141,8 +166,9 @@ class LRUDict:
         self.max_size = max_size
         self.size = 0
 
-    def update_kv(self, key, value):
+    def _update_kv(self, key, value):
         if key in self.unit_dict:
+            # old unit is no more valid
             self.unit_dict[key].valid = False
         elif self.size < self.max_size:
             self.size += 1
@@ -162,7 +188,7 @@ class LRUDict:
         return iter(self.keys())
 
     def __setitem__(self, key, value):
-        self.update_kv(key, value)
+        self._update_kv(key, value)
 
     def __getitem__(self, key):
         return self.unit_dict[key].value
@@ -207,13 +233,13 @@ class LIFODict:
         self.value_dict = {}
         self.count = 0
 
-    def update_kv(self, key, value):
+    def _update_kv(self, key, value):
         self.count_dict[key] = self.count
         self.count += 1
         self.value_dict[key] = value
 
     def __setitem__(self, key, value):
-        self.update_kv(key, value)
+        self._update_kv(key, value)
 
     def __getitem__(self, key):
         return self.value_dict[key]

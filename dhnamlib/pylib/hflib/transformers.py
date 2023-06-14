@@ -1,5 +1,10 @@
 
+import functools
+from transformers import LogitsProcessor
+import torch
+
 from dhnamlib.pylib.iteration import apply_recursively
+
 
 def iter_token_ids(tokenizer):
     return range(len(tokenizer))
@@ -48,3 +53,21 @@ def join_tokens(
         skip_special_tokens=skip_special_tokens,
         clean_up_tokenization_spaces=clean_up_tokenization_spaces,
         **kwargs)
+
+
+def logit_rescaling(logits_processor: LogitsProcessor, num_beams=None):
+    if num_beams is not None:
+        assert not hasattr(logits_processor, '_num_beams')
+        _num_beams = num_beams
+    elif hasattr(logits_processor, '_num_beams'):
+        _num_beams = getattr(logits_processor, '_num_beams')
+    else:
+        raise Exception('`num_beams` should be specified or inferenced from `logits_processor`')
+
+    @functools.wraps(logits_processor)
+    def new_logits_processor(*args, **kwargs):
+        logits = logits_processor(*args, **kwargs)
+        new_logits = torch.nn.functional.log_softmax(logits, dim=-1)
+        return new_logits
+
+    return new_logits_processor
