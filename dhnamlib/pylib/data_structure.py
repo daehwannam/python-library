@@ -129,6 +129,9 @@ class FIFOSet:
         for unit in self.unit_dict.values():
             yield unit[value_idx]
 
+    def __contains__(self, item):
+        return item in self.unit_dict
+
     def __repr__(self):
         return f'{self.__class__.__name__}(max_size={self.max_size}, {repr(set(self))})'
 
@@ -176,6 +179,7 @@ class FIFODict:
             lr_unit = self.q.popleft()
             while not lr_unit.valid:
                 lr_unit = self.q.popleft()
+            # Remove a valid unit from unit_dict
             del self.unit_dict[lr_unit.key]
 
         unit = self.Unit(key, value, True)
@@ -205,6 +209,9 @@ class FIFODict:
         value_idx = self.Unit.get_attr_idx('value')
         for unit in self.unit_dict.values():
             yield unit[value_idx]
+
+    def __contains__(self, key):
+        return key in self.unit_dict
 
     def __repr__(self):
         return f'{self.__class__.__name__}(max_size={self.max_size}, {repr(dict(self.items()))})'

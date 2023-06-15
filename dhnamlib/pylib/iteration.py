@@ -274,10 +274,11 @@ def get_values_from_pairs(attr_value_pairs, attr_list, key=identity, defaultvalu
 FIND_FAIL_MESSAGE_FORMAT = 'the target value "{target}" cannot be found'
 
 
-def _iter_idx_and_elem(seq, target, key=identity, default=NO_VALUE, test=None):
+def _iter_idx_and_elem(seq, target, key=identity, default=NO_VALUE, test=None, reverse=False):
+    _enumerate = reversed_enumerate if reverse else enumerate
     found = False
     if test is None:
-        for idx, elem in enumerate(seq):
+        for idx, elem in _enumerate(seq):
             if key(elem) == target:
                 yield idx, elem
                 found = True
@@ -289,7 +290,7 @@ def _iter_idx_and_elem(seq, target, key=identity, default=NO_VALUE, test=None):
     else:
         assert key is identity
 
-        for idx, elem in enumerate(seq):
+        for idx, elem in _enumerate(seq):
             if test(elem, target):
                 yield idx, elem
                 found = True
@@ -300,7 +301,7 @@ def _iter_idx_and_elem(seq, target, key=identity, default=NO_VALUE, test=None):
                 yield default, default
 
 
-def find(seq, target, key=identity, default=NO_VALUE, test=None):
+def find(seq, target, key=identity, default=NO_VALUE, test=None, reverse=False):
     '''
     >>> find(['a', 'b', 'c', 'd'], 'c')
     'c'
@@ -311,22 +312,28 @@ def find(seq, target, key=identity, default=NO_VALUE, test=None):
     >>> find(['a', 'b', 'c', 'd'], 'C', test=lambda elem, target: elem.upper() == target)
     'c'
     '''
-    idx, elem = next(_iter_idx_and_elem(seq, target, key=key, default=default, test=test))
+    idx, elem = next(_iter_idx_and_elem(seq, target, key=key, default=default, test=test, reverse=reverse))
     return elem
 
 
-def index(seq, target, key=identity, default=NO_VALUE, test=None):
-    idx, elem = next(_iter_idx_and_elem(seq, target, key=key, default=default, test=test))
+def index(seq, target, key=identity, default=NO_VALUE, test=None, reverse=False):
+    '''
+    >>> index(['a', 'b', 'c', 'd', 'e', 'c', 'f'], 'C', test=lambda elem, target: elem.upper() == target)
+    2
+    >>> index(['a', 'b', 'c', 'd', 'e', 'c', 'f'], 'C', test=lambda elem, target: elem.upper() == target, reverse=True)
+    5
+    '''
+    idx, elem = next(_iter_idx_and_elem(seq, target, key=key, default=default, test=test, reverse=reverse))
     return idx
 
 
-def finditer(seq, target, key=identity, default=NO_VALUE, test=None):
-    for idx, elem in _iter_idx_and_elem(seq, target, key=key, default=default, test=test):
+def finditer(seq, target, key=identity, default=NO_VALUE, test=None, reverse=False):
+    for idx, elem in _iter_idx_and_elem(seq, target, key=key, default=default, test=test, reverse=reverse):
         yield elem
 
 
-def indexiter(seq, target, key=identity, default=NO_VALUE, test=None):
-    for idx, elem in _iter_idx_and_elem(seq, target, key=key, default=default, test=test):
+def indexiter(seq, target, key=identity, default=NO_VALUE, test=None, reverse=False):
+    for idx, elem in _iter_idx_and_elem(seq, target, key=key, default=default, test=test, reverse=reverse):
         yield idx
 
 
@@ -403,6 +410,8 @@ def erange(*args):
 
     >>> tuple(zip('abcdefg', erange(1, float('inf'))))
     (('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6), ('g', 7))
+    >>> tuple(zip('abcdefg', erange(-1, '-inf', -1)))
+    (('a', -1), ('b', -2), ('c', -3), ('d', -4), ('e', -5), ('f', -6), ('g', -7))
     '''
 
     start = 0
@@ -416,7 +425,7 @@ def erange(*args):
         assert len(args) == 3
         start, stop, step = args
 
-    if stop == float('inf'):
+    if stop in [float('inf'), float('-inf'), 'inf', '-inf']:
         return itertools.count(start, step)
     else:
         return range(start, stop, step)
@@ -666,3 +675,8 @@ def chainelems(coll):
     for elem in coll:
         for item in elem:
             yield item
+
+
+def reversed_enumerate(coll, length=None):
+    length = length or len(coll)
+    return zip(range(length - 1, -1, -1), reversed(coll))
