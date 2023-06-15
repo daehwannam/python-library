@@ -1,6 +1,7 @@
-class NonUniqueValueError(Exception):
+
+class DuplicateValueError(Exception):
     pass
 
 
-class DuplicateValueError(Exception):
+class NotFoundError(Exception):
     pass

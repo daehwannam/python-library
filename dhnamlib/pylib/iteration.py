@@ -2,7 +2,7 @@
 import itertools
 from .function import identity
 from .constant import NO_VALUE
-from .exception import NonUniqueValueError, DuplicateValueError
+from .exception import DuplicateValueError, NotFoundError
 
 
 def unique(seq):
@@ -12,24 +12,24 @@ def unique(seq):
     >>> unique([10, 20])
     Traceback (most recent call last):
         ...
-    dhnamlib.pylib.exception.NonUniqueValueError: the length of sequence is longer than 1
+    dhnamlib.pylib.exception.DuplicateValueError: the length of sequence is longer than 1
     >>> unique([0])
     0
     >>> unique([])
     Traceback (most recent call last):
         ...
-    dhnamlib.pylib.exception.NonUniqueValueError: the length of sequence is 0
+    dhnamlib.pylib.exception.DuplicateValueError: the length of sequence is 0
     '''
     count = 0
     for elem in seq:
         count += 1
         if count > 1:
-            raise NonUniqueValueError("the length of sequence is longer than 1")
+            raise DuplicateValueError("the length of sequence is longer than 1")
     else:
         if count == 1:
             return elem
         else:
-            raise NonUniqueValueError("the length of sequence is 0")
+            raise DuplicateValueError("the length of sequence is 0")
 
 
 def checkup(items, *, predicate):
@@ -263,7 +263,7 @@ def get_values_from_pairs(attr_value_pairs, attr_list, key=identity, defaultvalu
     if len(attr_set) > 0:
         if no_default:
             for attr in attr_set:
-                raise Exception("Cannot find the correspodning value with {}".format(repr(attr)))
+                raise NotFoundError("Cannot find the correspodning value with {}".format(repr(attr)))
         elif defaultfunc is not None:
             for attr in attr_set:
                 value_list[attr_key_index_dict[attr]] = defaultfunc()
@@ -284,7 +284,7 @@ def _iter_idx_and_elem(seq, target, key=identity, default=NO_VALUE, test=None, r
                 found = True
         if not found:
             if default is NO_VALUE:
-                raise Exception(FIND_FAIL_MESSAGE_FORMAT.format(target=target))
+                raise NotFoundError(FIND_FAIL_MESSAGE_FORMAT.format(target=target))
             else:
                 yield default, default
     else:
@@ -296,7 +296,7 @@ def _iter_idx_and_elem(seq, target, key=identity, default=NO_VALUE, test=None, r
                 found = True
         if not found:
             if default is NO_VALUE:
-                raise Exception(FIND_FAIL_MESSAGE_FORMAT.format(target=target))
+                raise NotFoundError(FIND_FAIL_MESSAGE_FORMAT.format(target=target))
             else:
                 yield default, default
 
@@ -343,7 +343,7 @@ def any_value(seq, is_valid=bool, default=NO_VALUE):
             return elem
     else:
         if default is NO_VALUE:
-            raise Exception('no value is satisfied')
+            raise NotFoundError('no value is satisfied')
         else:
             return default
 
