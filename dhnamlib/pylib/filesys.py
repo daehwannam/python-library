@@ -6,6 +6,7 @@ import json
 import pickle
 import logging
 import pprint
+import pathlib
 
 try:
     import jsonlines
@@ -65,6 +66,10 @@ def mkdirs_unless_exist(path, to_dir=False):
         dir_path = os.path.dirname(path)
     if not os.path.isdir(dir_path):
         os.makedirs(dir_path)
+
+
+def get_parent_path(path):
+    return pathlib.Path(path).parent.as_posix()
 
 
 class ExtendedJSONEncoder(json.JSONEncoder):
