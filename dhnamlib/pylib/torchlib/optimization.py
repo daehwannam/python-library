@@ -41,4 +41,5 @@ def get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_st
             return last_value + (1 - last_value) * (1 - (((current_step - num_warmup_steps) + 1) /
                                                          (num_training_steps - num_warmup_steps)))
 
+    # a scheduler calls `step` once it's created
     return LambdaLR(optimizer, lr_lambda, last_epoch)

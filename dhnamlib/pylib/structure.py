@@ -4,6 +4,7 @@ import warnings
 
 from .iteration import distinct_pairs
 from .exception import DuplicateValueError
+from .lazy import LazyEval, eval_if_lazy
 
 
 class AttrDict(dict):
@@ -40,6 +41,21 @@ class AttrDict(dict):
 #         return type(obj)(get_recursive_attr_dict(elem) for elem in obj)
 #     else:
 #         return obj
+
+
+class LazyDict(dict):
+    def __getitem__(self, key):
+        return eval_if_lazy(super().__getitem__(key))
+
+    def get(self, key, default):
+        return eval_if_lazy(self.super().get(key, default))
+
+    def __items__(self):
+        for k, v in super().__items__():
+            yield k, eval_if_lazy(v)
+
+    def values(self):
+        return map(eval_if_lazy, super().values())
 
 
 class TreeStructure:

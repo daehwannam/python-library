@@ -243,6 +243,26 @@ def masked_log_softmax(input, mask=None, *args, **kwargs):
                          *args, **kwargs)
 
 
+length_tensor_to_mask = rnnlib.get_indicator
+
+
+def id_tensor_to_mask(id_tensor, pad_token_id):
+    if isinstance(pad_token_id, int):
+        pad_token_ids = [pad_token_id]
+    else:
+        pad_token_ids = pad_token_id
+        assert len(pad_token_ids) > 0
+    del pad_token_id
+
+    pad_token_id_iter = iter(pad_token_ids)
+    accumulation = (id_tensor != next(pad_token_id_iter))
+
+    for pad_token_id in pad_token_id_iter:
+        accumulation = accumulation.logical_and(id_tensor != pad_token_id)
+
+    return accumulation.long()
+
+
 def pad_sequence(sequence, pad, max_length=None):
     '''
     Pad nested sequence. `sequence` can be multi-dimensional lists, such as 3D or 4D arrays.

@@ -3,6 +3,7 @@ import itertools
 from .function import identity
 from .constant import NO_VALUE
 from .exception import DuplicateValueError, NotFoundError
+# from .iteration import deprecated
 
 
 def unique(seq):
@@ -100,7 +101,7 @@ def dicts2pairs(*args):
             yield (k, tuple(d[k] for d in args))
 
 
-def pairs2dicts(**kargs):
+def pairs2dicts(pairs=[], **kwargs):
     '''
     Key-sequence pairs to dictionaries.
 
@@ -108,20 +109,23 @@ def pairs2dicts(**kargs):
 
     >>> list(pairs2dicts(**{'a': (1, 10, 100), 'b': (2, 20, 200)}))
     [{'a': 1, 'b': 2}, {'a': 10, 'b': 20}, {'a': 100, 'b': 200}]
+    >>> list(pairs2dicts(a=(1, 10, 100), b=(2, 20, 200)))
+    [{'a': 1, 'b': 2}, {'a': 10, 'b': 20}, {'a': 100, 'b': 200}]
+    >>> list(pairs2dicts([['a', (1, 10, 100)], ['b', (2, 20, 200)]]))
     '''
 
-    if not kargs:
+    merged_pairs = tuple(itertools.chain(pairs, kwargs.items()))
+
+    if len(merged_pairs) == 0:
         yield from ()
     else:
-        value = next(iter(kargs.values()))
-        # if not all(len(v) == len(value) for v in kargs.values()):
-        #     breakpoint()
-        assert all(len(v) == len(value) for v in kargs.values())
-        for idx in range(len(value)):
-            yield {k: v[idx] for k, v in kargs.items()}
+        _, first_value = merged_pairs[0]
+        assert all(len(value) == len(first_value) for key, value in merged_pairs)
+        for idx in range(len(first_value)):
+            yield {key: value[idx] for key, value in merged_pairs}
 
 
-# def dzip(*args, **kargs):
+# def dzip(*args, **kwargs):
 #     if args:  # non-empty tuple
 #         keys = args[0].keys()
 #         key_set = set(keys)
@@ -129,11 +133,11 @@ def pairs2dicts(**kargs):
 #         for k in keys:
 #             yield (k, tuple(d[k] for d in args))
 
-#     elif kargs:  # non-empty dict
-#         value = next(iter(kargs.values()))
-#         assert all(len(v) == len(value) for v in kargs.values())
+#     elif kwargs:  # non-empty dict
+#         value = next(iter(kwargs.values()))
+#         assert all(len(v) == len(value) for v in kwargs.values())
 #         for idx in range(len(value)):
-#             yield {k: v[idx] for k, v in kargs.items()}
+#             yield {k: v[idx] for k, v in kwargs.items()}
 
 #     else:
 #         yield from ()  # https://stackoverflow.com/a/36863998/6710003
@@ -189,6 +193,19 @@ def merge_dicts(dicts, merge_fn=None):
     return merge_pairs(
         ([k, v] for dic in dicts for k, v in dic.items()),
         merge_fn=merge_fn)
+
+
+# @deprecated
+def _filter_values_0(fn, /, args, **kwargs):
+    for key, value in itertools.chain(args, kwargs.items()):
+        if fn(value):
+            yield key, value
+
+
+def filter_dict_values(fn, dic):
+    for key, value in dic.items():
+        if fn(value):
+            yield key, value
 
 
 def apply_recursively(obj, dict_fn=None, coll_fn=None):

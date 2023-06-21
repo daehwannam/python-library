@@ -15,7 +15,7 @@
               (setv obj (load-func file-path))
               (do
                 (setv obj (func #* args #** kwargs))
-                (filesys.mkdirs_unless_exist file-path)
+                (filesys.mkpdirs_unless_exist file-path)
                 (save-func obj file-path)))
           obj))
 

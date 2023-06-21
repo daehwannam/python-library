@@ -54,18 +54,36 @@ def change_extension(path, new_ext):
     return '{}.{}'.format(pre, new_ext)
 
 
-def open_with_mkdirs(path, *args):
-    mkdirs_unless_exist(path)
+def open_with_mkpdirs(path, *args):
+    mkpdirs_unless_exist(path)
     return open(path, *args)
 
 
-def mkdirs_unless_exist(path, to_dir=False):
+def _make_dirs_unless_exist(path, to_dir):
     if to_dir:
         dir_path = os.path.dirname(os.path.join(path, ''))
     else:
         dir_path = os.path.dirname(path)
     if not os.path.isdir(dir_path):
+        assert not os.path.isfile(dir_path)
         os.makedirs(dir_path)
+
+
+def mkpdirs_unless_exist(path):
+    "Make parent directories of a file"
+    _make_dirs_unless_exist(path, to_dir=False)
+
+
+def mkloc_unless_exist(path):
+    "Make directories in the path to a directory"
+    _make_dirs_unless_exist(path, to_dir=True)
+
+
+def touch_with_mkpdirs(path):
+    mkpdirs_unless_exist(path)
+    if not os.path.isfile(path):
+        with open(path, 'w') as f:
+            pass
 
 
 def get_parent_path(path):

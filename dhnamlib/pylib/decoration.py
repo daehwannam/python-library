@@ -244,7 +244,7 @@ def file_cache(file_path_arg_name='file_cache_path', *, save_fn=None, load_fn=No
                 obj = load_fn(file_path)
             else:
                 obj = func(*args, **kwargs)
-                filesys.mkdirs_unless_exist(file_path)
+                filesys.mkpdirs_unless_exist(file_path)
                 save_fn(obj, file_path)
             return obj
 

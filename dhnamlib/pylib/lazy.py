@@ -13,3 +13,10 @@ class LazyEval:
             self.evaluated = True
 
         return self.obj
+
+
+def eval_if_lazy(obj):
+    if isinstance(obj, LazyEval):
+        return obj.get()
+    else:
+        return obj
