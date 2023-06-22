@@ -1,12 +1,15 @@
 
 import os
 import numpy as np
+# from itertools import chain
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from . import rnnlib
+# from ..decoration import deprecated
+from ..iteration import nest, get_elem
 
 
 class MyModule(nn.Module):
@@ -243,10 +246,49 @@ def masked_log_softmax(input, mask=None, *args, **kwargs):
                          *args, **kwargs)
 
 
-length_tensor_to_mask = rnnlib.get_indicator
+def lengths_to_mask(lengths, max_length=None):
+    """
+    Example:
+
+    >>> lengths_to_mask([3, 4, 6, 2])
+    tensor([[1, 1, 1, 0, 0, 0],
+            [1, 1, 1, 1, 0, 0],
+            [1, 1, 1, 1, 1, 1],
+            [1, 1, 0, 0, 0, 0]])
+    >>> lengths_to_mask([3, 4, 6, 2], max_length=8)
+    tensor([[1, 1, 1, 0, 0, 0, 0, 0],
+            [1, 1, 1, 1, 0, 0, 0, 0],
+            [1, 1, 1, 1, 1, 1, 0, 0],
+            [1, 1, 0, 0, 0, 0, 0, 0]])
+    """
+    # This code is almost same with `rnnlib.get_indicator`
+    # except the ouput's dimension and dtype
+
+    if isinstance(lengths, (list, tuple)):
+        lengths = torch.tensor(lengths, dtype=torch.int64)
+
+    lengths_size = lengths.size()
+    flat_lengths = lengths.view(-1, 1)
+
+    if not max_length:
+        max_length = lengths.max()
+    unit_range = torch.arange(max_length)
+    flat_range = unit_range.expand(flat_lengths.size()[0:1] + unit_range.size())
+    flat_indicator = flat_range < flat_lengths
+
+    return flat_indicator.view(lengths_size + (-1,)).long()
 
 
 def id_tensor_to_mask(id_tensor, pad_token_id):
+    '''
+    >>> id_tensor_to_mask(torch.tensor([1, 2, 3, 4, 10, 10, 10, 10]), 10)
+    tensor([1, 1, 1, 1, 0, 0, 0, 0])
+    >>> id_tensor_to_mask(torch.tensor([1, 2, 3, 4, 10, 10, 20, 20]), [10, 20])
+    tensor([1, 1, 1, 1, 0, 0, 0, 0])
+    >>> id_tensor_to_mask(torch.tensor([[1, 2, 3, 4, 10, 10, 20, 20], [5, 6, 10, 10, 20, 20, 20, 20]]), [10, 20])
+    tensor([[1, 1, 1, 1, 0, 0, 0, 0],
+            [1, 1, 0, 0, 0, 0, 0, 0]])
+    '''
     if isinstance(pad_token_id, int):
         pad_token_ids = [pad_token_id]
     else:
@@ -261,6 +303,60 @@ def id_tensor_to_mask(id_tensor, pad_token_id):
         accumulation = accumulation.logical_and(id_tensor != pad_token_id)
 
     return accumulation.long()
+
+
+def _get_coll_dim(coll):
+    depth = 0
+    _coll = coll
+    while isinstance(_coll, (list, tuple)):
+        depth += 1
+        _coll = _coll[0]
+    return depth
+
+
+def get_dim(coll):
+    if isinstance(coll, torch.Tensor):
+        return coll.dim()
+    else:
+        return _get_coll_dim(coll)
+
+
+def _get_coll_size(coll):
+    _coll = coll
+    size = []
+    while isinstance(_coll, (list, tuple)):
+        size.append(len(_coll))
+        _coll = _coll[0]
+    return torch.Size(size)
+
+
+def get_size(coll):
+    if isinstance(coll, torch.Tensor):
+        return coll.size()
+    else:
+        return _get_coll_size(coll)
+
+
+def get_size_but_last(coll):
+    return get_size(coll)[:-1]
+
+
+def candidate_ids_to_mask(candidate_ids, vocab_size):
+    '''
+    >>> candidate_ids_to_mask([[0, 2, 4], [2, 3, 4]], vocab_size=6)
+    tensor([[1., 0., 1., 0., 1., 0.],
+            [0., 0., 1., 1., 1., 0.]])
+    '''
+    def to_tuple(*args):
+        return args
+
+    size_but_last = get_size_but_last(candidate_ids)
+    mask = torch.zeros(*size_but_last, vocab_size)
+    for indices in nest(*map(range, size_but_last)):
+        candidates = get_elem(candidate_ids, indices)
+        mask[to_tuple(*indices, candidates)] = 1
+
+    return mask
 
 
 def pad_sequence(sequence, pad, max_length=None):

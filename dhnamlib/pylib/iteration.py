@@ -101,7 +101,7 @@ def dicts2pairs(*args):
             yield (k, tuple(d[k] for d in args))
 
 
-def pairs2dicts(pairs=[], **kwargs):
+def pairs2dicts(pairs=(), **kwargs):
     '''
     Key-sequence pairs to dictionaries.
 
@@ -112,6 +112,7 @@ def pairs2dicts(pairs=[], **kwargs):
     >>> list(pairs2dicts(a=(1, 10, 100), b=(2, 20, 200)))
     [{'a': 1, 'b': 2}, {'a': 10, 'b': 20}, {'a': 100, 'b': 200}]
     >>> list(pairs2dicts([['a', (1, 10, 100)], ['b', (2, 20, 200)]]))
+    [{'a': 1, 'b': 2}, {'a': 10, 'b': 20}, {'a': 100, 'b': 200}]
     '''
 
     merged_pairs = tuple(itertools.chain(pairs, kwargs.items()))
@@ -448,12 +449,36 @@ def erange(*args):
         return range(start, stop, step)
 
 
-def nest(first, *others):
+def get_elem(coll, *indices):
     '''
     Example:
+    >>> tensor = [[[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
+    ...           [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]
+    >>> get_elem(tensor, [0, 2])
+    [8, 9, 10, 11]
+    '''
+    if len(indices) == 1 and isinstance(indices, (list, tuple)):
+        indices = indices[0]
+    elem = coll
+    for idx in indices:
+        elem = elem[idx]
+    return elem
+
+
+def nest(first, *others):
+    '''
+    Example 1:
 
     >>> tuple(nest(range(2), 'abc'))
     ((0, 'a'), (0, 'b'), (0, 'c'), (1, 'a'), (1, 'b'), (1, 'c'))
+
+    Example 2:
+
+    >>> tensor = [[[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
+    ...           [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]
+    >>> size = [2, 3, 4]
+    >>> tuple(get_elem(tensor, indices) for indices in nest(*map(range, size[:-1])))
+    ([0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11])
     '''
     if others:
         for first_item in first:
