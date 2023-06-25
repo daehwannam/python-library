@@ -49,6 +49,37 @@ def get_extension(path):
     return file_extension[1:]
 
 
+def get_octal_mode(file_path):
+    '''
+    Example:
+
+    >>> get_octal_mode('/tmp')  # doctest: +SKIP
+    '777'                       # doctest: +SKIP
+    '''
+
+    # This code is copied from
+    # https://www.geeksforgeeks.org/how-to-get-the-permission-mask-of-a-file-in-python/
+
+    return oct(os.stat(file_path).st_mode)[-3:]
+
+
+def set_octal_mode(file_path, mode: str):
+    '''
+    Example:
+
+    >>> file_path = '/tmp/temp-file'      # doctest: +SKIP
+    >>> with open(file_path, 'w'):        # doctest: +SKIP
+    ...     pass                          # doctest: +SKIP
+    ...                                   # doctest: +SKIP
+    >>> set_octal_mode(file_path, '777')  # doctest: +SKIP
+    >>> get_octal_mode(file_path)         # doctest: +SKIP
+    '777'                                 # doctest: +SKIP
+    '''
+    assert isinstance(mode, str)
+    octal_code = int(mode, 8)
+    os.chmod(file_path, octal_code)
+
+
 def change_extension(path, new_ext):
     pre, ext = os.path.splitext(path)
     return '{}.{}'.format(pre, new_ext)
@@ -75,15 +106,19 @@ def mkpdirs_unless_exist(path):
 
 
 def mkloc_unless_exist(path):
-    "Make directories in the path to a directory"
+    "Make directories (for a location) in the path to a directory"
     _make_dirs_unless_exist(path, to_dir=True)
+
+
+def touch(path):
+    if not os.path.isfile(path):
+        with open(path, 'w') as f:
+            pass
 
 
 def touch_with_mkpdirs(path):
     mkpdirs_unless_exist(path)
-    if not os.path.isfile(path):
-        with open(path, 'w') as f:
-            pass
+    touch(path)
 
 
 def get_parent_path(path):
