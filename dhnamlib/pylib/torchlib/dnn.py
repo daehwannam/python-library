@@ -215,35 +215,58 @@ def max_over_index(tensor, index):
     return max_values
 
 
-def masked_softmax(input, mask=None, *args, **kwargs):
+def _masked_softmax(softmax_fn, input, mask=None, *args, **kwargs):
     if mask is None:
-        mask = torch.ones(input.shape, device=input.device)
+        # _mask = torch.ones(input.size(), device=input.device)
+        masked_input = input
     elif isinstance(mask, (list, tuple)):
-        mask = torch.tensor(mask, device=input.device)
+        _mask = torch.tensor(mask, device=input.device)
+        masked_input = input.masked_fill((1 - _mask.int()).bool(), float('-inf'))
 
-    return F.softmax(input.masked_fill((1 - mask.int()).bool(),
-                                       float('-inf')),
-                     *args, **kwargs)
+    return softmax_fn(masked_input, *args, **kwargs)
+
+
+def masked_softmax(input, mask=None, *args, **kwargs):
+    return _masked_softmax(softmax_fn=F.softmax, input=input, mask=mask, *args, **kwargs)
 
 
 def masked_log_softmax(input, mask=None, *args, **kwargs):
     '''
     >>> tensor = torch.tensor([1,2,3,4], dtype=torch.float)
-    >>> masked_log_softmax(tensor, mask=[0, 1, 0, 1])
-    >>> log_probs = masked_log_softmax(tensor, [0, 1, 0, 1])
+    >>> log_probs = masked_log_softmax(tensor, [0, 1, 0, 1], dim=-1)
     >>> log_probs                                             # doctest: +SKIP
     tensor([   -inf, -2.1269,    -inf, -0.1269])              # doctest: +SKIP
     >>> log_probs.exp()                                       # doctest: +SKIP
     tensor([0.0000, 0.1192, 0.0000, 0.8808])                  # doctest: +SKIP
     '''
-    if mask is None:
-        mask = torch.ones(input.shape, device=input.device)
-    elif isinstance(mask, (list, tuple)):
-        mask = torch.tensor(mask, device=input.device)
 
-    return F.log_softmax(input.masked_fill((1 - mask.int()).bool(),
-                                           float('-inf')),
-                         *args, **kwargs)
+    return _masked_softmax(softmax_fn=F.log_softmax, input=input, mask=mask, *args, **kwargs)
+
+
+def nll_without_reduction(input, target, *args, **kwargs):
+    '''
+    Example:
+
+    >>> logits = torch.randn(3, 5, requires_grad=True)  # logits is of size N x C = 3 x 5
+    >>> labels = torch.tensor([1, 0, 4])               # each element in labels has to have 0 <= value < C
+    >>> log_probs = F.log_softmax(logits, dim=1)
+    >>> nll = nll_without_reduction(log_probs, labels)
+    >>> print(nll)                                                 # doctest: +SKIP
+    tensor([1.4162, 2.9010, 2.6152], grad_fn=<ViewBackward0>)      # doctest: +SKIP
+    '''
+    input_size = input.size()
+    target_size = target.size()
+    assert input_size[:-1] == target_size
+
+    num_classes = input_size[-1]
+
+    reshaped_input = input.view(-1, num_classes)
+    reshaped_target = target.view(-1)
+
+    reshaped_nll = F.nll_loss(reshaped_input, reshaped_target, reduction='none')
+    nll = reshaped_nll.view(target_size)
+
+    return nll
 
 
 def lengths_to_mask(lengths, max_length=None):
