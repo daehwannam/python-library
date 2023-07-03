@@ -1,4 +1,8 @@
 
+from .decoration import deprecated
+from .function import identity
+
+
 class LazyEval:
     def __init__(self, fn, *args, **kwargs):
         self.fn = fn
@@ -15,8 +19,23 @@ class LazyEval:
         return self.obj
 
 
-def eval_if_lazy(obj):
+def eval_lazy_obj(obj):
     if isinstance(obj, LazyEval):
         return obj.get()
     else:
         return obj
+
+
+@deprecated
+def eval_obj_unless_lazy(obj, lazy):
+    if lazy:
+        return obj
+    else:
+        return eval_lazy_obj(obj)
+
+
+def get_eval_obj_unless_lazy(lazy):
+    if lazy:
+        return identity
+    else:
+        return eval_lazy_obj

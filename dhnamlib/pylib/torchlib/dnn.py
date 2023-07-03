@@ -1,15 +1,16 @@
 
 import os
 import numpy as np
-# from itertools import chain
+from itertools import chain
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from . import rnnlib
-# from ..decoration import deprecated
-from ..iteration import nest, get_elem
+from ..decoration import deprecated
+# from ..decoration import variable
+from ..iteration import nest, get_elem, set_elem, all_same, firstelem
 
 
 class MyModule(nn.Module):
@@ -219,8 +220,12 @@ def _masked_softmax(softmax_fn, input, mask=None, *args, **kwargs):
     if mask is None:
         # _mask = torch.ones(input.size(), device=input.device)
         masked_input = input
-    elif isinstance(mask, (list, tuple)):
-        _mask = torch.tensor(mask, device=input.device)
+    else:
+        if isinstance(mask, (list, tuple)):
+            _mask = torch.tensor(mask, device=input.device)
+        else:
+            assert isinstance(mask, torch.Tensor)
+            _mask = mask.to(input.device)
         masked_input = input.masked_fill((1 - _mask.int()).bool(), float('-inf'))
 
     return softmax_fn(masked_input, *args, **kwargs)
@@ -269,16 +274,16 @@ def nll_without_reduction(input, target, *args, **kwargs):
     return nll
 
 
-def lengths_to_mask(lengths, max_length=None):
+def lengths_to_mask(lengths, max_length=None, dtype=torch.long):
     """
     Example:
 
-    >>> lengths_to_mask([3, 4, 6, 2])
+    >>> lengths_to_mask([3, 4, 6, 2], dtype=torch.long)
     tensor([[1, 1, 1, 0, 0, 0],
             [1, 1, 1, 1, 0, 0],
             [1, 1, 1, 1, 1, 1],
             [1, 1, 0, 0, 0, 0]])
-    >>> lengths_to_mask([3, 4, 6, 2], max_length=8)
+    >>> lengths_to_mask([3, 4, 6, 2], max_length=8, dtype=torch.long)
     tensor([[1, 1, 1, 0, 0, 0, 0, 0],
             [1, 1, 1, 1, 0, 0, 0, 0],
             [1, 1, 1, 1, 1, 1, 0, 0],
@@ -299,16 +304,21 @@ def lengths_to_mask(lengths, max_length=None):
     flat_range = unit_range.expand(flat_lengths.size()[0:1] + unit_range.size())
     flat_indicator = flat_range < flat_lengths
 
-    return flat_indicator.view(lengths_size + (-1,)).long()
+    indicator = flat_indicator.view(lengths_size + (-1,))
+
+    if indicator.dtype != dtype:
+        indicator = indicator.type(dtype)
+
+    return indicator
 
 
-def id_tensor_to_mask(id_tensor, pad_token_id):
+def id_tensor_to_mask(id_tensor, pad_token_id, dtype=torch.long):
     '''
-    >>> id_tensor_to_mask(torch.tensor([1, 2, 3, 4, 10, 10, 10, 10]), 10)
+    >>> id_tensor_to_mask(torch.tensor([1, 2, 3, 4, 10, 10, 10, 10]), 10, dtype=torch.long)
     tensor([1, 1, 1, 1, 0, 0, 0, 0])
-    >>> id_tensor_to_mask(torch.tensor([1, 2, 3, 4, 10, 10, 20, 20]), [10, 20])
+    >>> id_tensor_to_mask(torch.tensor([1, 2, 3, 4, 10, 10, 20, 20]), [10, 20], dtype=torch.long)
     tensor([1, 1, 1, 1, 0, 0, 0, 0])
-    >>> id_tensor_to_mask(torch.tensor([[1, 2, 3, 4, 10, 10, 20, 20], [5, 6, 10, 10, 20, 20, 20, 20]]), [10, 20])
+    >>> id_tensor_to_mask(torch.tensor([[1, 2, 3, 4, 10, 10, 20, 20], [5, 6, 10, 10, 20, 20, 20, 20]]), [10, 20], dtype=torch.long)
     tensor([[1, 1, 1, 1, 0, 0, 0, 0],
             [1, 1, 0, 0, 0, 0, 0, 0]])
     '''
@@ -325,7 +335,10 @@ def id_tensor_to_mask(id_tensor, pad_token_id):
     for pad_token_id in pad_token_id_iter:
         accumulation = accumulation.logical_and(id_tensor != pad_token_id)
 
-    return accumulation.long()
+    if accumulation.dtype != dtype:
+        accumulation = accumulation.type(dtype)
+
+    return accumulation
 
 
 def _get_coll_dim(coll):
@@ -346,14 +359,18 @@ def get_dim(coll):
 
 def _get_coll_size(coll):
     _coll = coll
-    size = []
+    _size = []
     while isinstance(_coll, (list, tuple)):
-        size.append(len(_coll))
+        _size.append(len(_coll))
         _coll = _coll[0]
-    return torch.Size(size)
+    if isinstance(_coll, torch.Tensor):
+        size = torch.Size(_size) + _coll.size()
+    else:
+        size = torch.Size(_size)
+    return size
 
 
-def get_size(coll):
+def _get_size(coll):
     if isinstance(coll, torch.Tensor):
         return coll.size()
     else:
@@ -361,49 +378,59 @@ def get_size(coll):
 
 
 def get_size_but_last(coll):
-    return get_size(coll)[:-1]
+    return _get_size(coll)[:-1]
 
 
-def candidate_ids_to_mask(candidate_ids, vocab_size):
+def candidate_ids_to_mask(candidate_ids, vocab_size, dtype=torch.long):
     '''
-    >>> candidate_ids_to_mask([[0, 2, 4], [2, 3, 4]], vocab_size=6)
-    tensor([[1., 0., 1., 0., 1., 0.],
-            [0., 0., 1., 1., 1., 0.]])
+    >>> candidate_ids_to_mask([[0, 2, 4], [2, 3, 4]], vocab_size=6, dtype=torch.long)
+    tensor([[1, 0, 1, 0, 1, 0],
+            [0, 0, 1, 1, 1, 0]])
     '''
     def to_tuple(*args):
         return args
 
     size_but_last = get_size_but_last(candidate_ids)
-    mask = torch.zeros(*size_but_last, vocab_size)
+    mask = torch.zeros(to_tuple(*size_but_last, vocab_size), dtype=dtype)
     for indices in nest(*map(range, size_but_last)):
         candidates = get_elem(candidate_ids, indices)
         mask[to_tuple(*indices, candidates)] = 1
 
+    if mask.dtype != dtype:
+        mask = mask.type(dtype)
+
     return mask
 
-
-def pad_sequence(sequence, pad, max_length=None):
+@deprecated  # `apply_recursively` is slow
+def _pad_sequence_0(sequence, padding_value, dim=None, max_length=None):
     '''
     Pad nested sequence. `sequence` can be multi-dimensional lists, such as 3D or 4D arrays.
 
-    >>> pad_sequence([[[1, 2, 3], [4, 5]],[[6, 7, 8, 9]]], pad=float('inf'))
-    [[[1, 2, 3, inf], [4, 5, inf, inf]], [[6, 7, 8, 9]]]
-    >>> pad_sequence([[[1, 2, 3], [4, 5]],[[6, 7, 8, 9]]], pad=float('inf'), max_length=6)
-    [[[1, 2, 3, inf, inf, inf], [4, 5, inf, inf, inf, inf]], [[6, 7, 8, 9, inf, inf]]]
+    >>> _pad_sequence_0([[[1, 2, 3], [4, 5]],[[6, 7, 8, 9]]], padding_value=float('inf'))                         # doctest: +SKIP
+    [[[1, 2, 3, inf], [4, 5, inf, inf]], [[6, 7, 8, 9]]]                                                # doctest: +SKIP
+    >>> _pad_sequence_0([[[1, 2, 3], [4, 5]],[[6, 7, 8, 9]]], padding_value=float('inf'), max_length=6)           # doctest: +SKIP
+    [[[1, 2, 3, inf, inf, inf], [4, 5, inf, inf, inf, inf]], [[6, 7, 8, 9, inf, inf]]]                  # doctest: +SKIP
+    >>> _pad_sequence_0([[[1, 2, 3], [4, 5]],[[6, 7, 8, 9]]], padding_value=[float('inf')], dim=1, max_length=3)  # doctest: +SKIP
+    [[[1, 2, 3], [4, 5], [inf]], [[6, 7, 8, 9], [inf], [inf]]]                                          # doctest: +SKIP
     '''
 
     from .. import iteration
 
     assert isinstance(sequence, (tuple, list))
 
-    dim = 0
+    _num_dimensions = 0
     seq = sequence
     while isinstance(seq, (tuple, list)):
-        dim += 1
+        _num_dimensions += 1
         if len(seq) == 0:
             break
         seq = seq[0]
-    assert dim >= 2
+    assert _num_dimensions >= 2
+
+    if dim is None or dim == -1:
+        dim = _num_dimensions - 1  # last dimension
+    else:
+        assert dim < _num_dimensions
 
     if max_length is None:
         def find_max_length(seq, depth):
@@ -412,7 +439,7 @@ def pad_sequence(sequence, pad, max_length=None):
             else:
                 return len(seq)
 
-        max_length = find_max_length(sequence, 1)
+        max_length = find_max_length(sequence, 0)
 
     padded_sequence = iteration.apply_recursively(sequence, coll_fn=list)
 
@@ -422,12 +449,70 @@ def pad_sequence(sequence, pad, max_length=None):
                 pad_recursively(elem, depth + 1)
         else:
             while len(seq) < max_length:
-                seq.append(pad)
+                seq.append(padding_value)
 
-    pad_recursively(padded_sequence, 1)
+    pad_recursively(padded_sequence, 0)
 
     return padded_sequence
 
+
+@deprecated
+def _make_empty_structure_by_size(size):
+    if len(size) == 0:
+        return []
+    else:
+        sub_size = size[1:]
+        return list(_make_empty_structure_by_size(sub_size) for _ in range(size[0]))
+
+
+@deprecated
+def _make_empty_structure_like(structure):
+    if (not isinstance(structure[0], (list, tuple))) or (len(structure) == 0):
+        return []
+    else:
+        return list(_make_empty_structure_like(sub_structure) for sub_structure in structure)
+
+
+def pad_sequence(sequence, padding_value, dim=None, max_length=None, device=None):
+    '''
+    Pad nested sequence. `sequence` can be multi-dimensional lists, such as 3D or 4D arrays.
+
+    >>> pad_sequence([[[1, 2, 3], [4, 5]],[[6, 7, 8, 9]]], padding_value=float('inf'))
+    [[[1, 2, 3, inf], [4, 5, inf, inf]], [[6, 7, 8, 9]]]
+    >>> pad_sequence([[[1, 2, 3], [4, 5]],[[6, 7, 8, 9]]], padding_value=float('inf'), max_length=6)
+    [[[1, 2, 3, inf, inf, inf], [4, 5, inf, inf, inf, inf]], [[6, 7, 8, 9, inf, inf]]]
+    >>> pad_sequence([[[1, 2, 3], [4, 5]],[[6, 7, 8, 9]]], padding_value=[float('inf')], dim=1, max_length=3)
+    [[[1, 2, 3], [4, 5], [inf]], [[6, 7, 8, 9], [inf], [inf]]]
+    '''
+
+    if dim is None or dim == -1:
+        size_but_last = get_size_but_last(sequence)
+        dim = len(size_but_last)  # last dim
+
+    if max_length is None:
+        def find_max_length(seq, depth):
+            if depth < dim:
+                return max(find_max_length(elem, depth + 1) for elem in seq)
+            else:
+                return len(seq)
+
+        max_length = find_max_length(sequence, 0)
+
+    padded_sequence = []
+
+    def pad_recursively(padded_seq, seq, depth):
+        if depth < dim:
+            for subseq in seq:
+                padded_subseq = []
+                padded_seq.append(padded_subseq)
+                pad_recursively(padded_subseq, subseq, depth + 1)
+        else:
+            padded_seq.extend(seq)
+            padded_seq.extend(padding_value for _ in range(max_length - len(seq)))
+
+    pad_recursively(padded_sequence, sequence, 0)
+
+    return padded_sequence
 
 def _has_param_grad(param):
     grad = param.grad
@@ -484,3 +569,45 @@ class SimpleDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.examples)
+
+
+def batch_sequence_tensors(sequence_tensors, padding_value=0, init_fn=None):
+    '''
+    :param sequence_tensors: A list of tensors whose shape is (seq_length, *).
+    All tensors can have a different seq_length but should have the same size ('*') except the seq_length.
+
+    Example:
+
+    >>> sequence_tensors = [
+    ...     torch.tensor([[1, 2, 3], [4, 5, 6]]),
+    ...     torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]]),
+    ...     torch.tensor([[1, 2, 3], [4, 5, 6]]),
+    ...     torch.tensor([[1, 2, 3]]),
+    ... ]
+    >>> batch_sequence_tensors(sequence_tensors, 0).tolist()
+    [[[1, 2, 3], [4, 5, 6], [0, 0, 0]], [[1, 2, 3], [4, 5, 6], [7, 8, 9]], [[1, 2, 3], [4, 5, 6], [0, 0, 0]], [[1, 2, 3], [0, 0, 0], [0, 0, 0]]]
+    '''
+    # sequence_tensors = tuple(
+    #     (sequence_tensor if isinstance(sequence_tensor, torch.Tensor) else
+    #      torch.tensor(sequence_tensor))
+    #     for sequence_tensor in sequence_tensors)
+
+    batch_size = len(sequence_tensors)
+    seq_lengths, *lengths_tuple = zip(*(sequence_tensor.size() for sequence_tensor in sequence_tensors))
+    max_seq_length = int(max(seq_lengths))
+    step_size = []
+    for lengths in lengths_tuple:
+        assert all_same(lengths)
+        step_size.append(firstelem(lengths))
+
+    assert all_same(sequence_tensor.device for sequence_tensor in sequence_tensors)
+    device = firstelem(sequence_tensors).device
+
+    batched_tensor = torch.full([batch_size, max_seq_length] + step_size, padding_value, device=device)
+    if init_fn is not None:
+        batched_tensor = init_fn(batched_tensor)
+    for idx, sequence_tensor in enumerate(sequence_tensors):
+        seq_length = sequence_tensor.size()[0]
+        batched_tensor[idx, :seq_length] = sequence_tensor
+
+    return batched_tensor

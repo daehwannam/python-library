@@ -189,6 +189,9 @@ def merge_dicts(dicts, merge_fn=None):
 
     >>> merge_dicts([dict(a=1, b=2), dict(a=10, c=30), dict(b=200, c=300)], merge_fn=set)
     {'a': {1, 10}, 'b': {200, 2}, 'c': {300, 30}}
+
+    >>> merge_dicts([dict(a=1, b=2), dict(c=30, d=40)], merge_fn=unique)  # similar to `distinct_pairs`
+    {'a': 1, 'b': 2, 'c': 30, 'd': 40}
     '''
 
     return merge_pairs(
@@ -196,17 +199,24 @@ def merge_dicts(dicts, merge_fn=None):
         merge_fn=merge_fn)
 
 
-# @deprecated
-def _filter_values_0(fn, /, args, **kwargs):
-    for key, value in itertools.chain(args, kwargs.items()):
+def _filter_pair_values(fn, /, pairs, kwargs={}):
+    for key, value in itertools.chain(pairs, kwargs.items()):
         if fn(value):
             yield key, value
 
 
 def filter_dict_values(fn, dic):
-    for key, value in dic.items():
-        if fn(value):
-            yield key, value
+    return _filter_pair_values(fn, dic.items())
+
+
+def not_none_valued_pairs(pairs=(), **kwargs):
+    '''
+    Example:
+
+    >>> dict(not_none_valued_pairs(a=10, b=None, c=20))
+    {'a': 10, 'c': 20}
+    '''
+    return _filter_pair_values(is_not_none, pairs, kwargs)
 
 
 def apply_recursively(obj, dict_fn=None, coll_fn=None):
@@ -449,7 +459,7 @@ def erange(*args):
         return range(start, stop, step)
 
 
-def get_elem(coll, *indices):
+def get_elem(coll, indices):
     '''
     Example:
     >>> tensor = [[[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
@@ -457,12 +467,29 @@ def get_elem(coll, *indices):
     >>> get_elem(tensor, [0, 2])
     [8, 9, 10, 11]
     '''
-    if len(indices) == 1 and isinstance(indices, (list, tuple)):
-        indices = indices[0]
+    if isinstance(indices, int):
+        indices = (indices,)
     elem = coll
     for idx in indices:
         elem = elem[idx]
     return elem
+
+
+def set_elem(coll, indices, value):
+    '''
+    Example:
+    >>> tensor = [[[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
+    ...           [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]
+    >>> set_elem(tensor, [0, 2], [0, 0, 0, 0])
+    >>> tensor
+    [[[0, 1, 2, 3], [4, 5, 6, 7], [0, 0, 0, 0]], [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]
+    '''
+    if isinstance(indices, int):
+        indices = (indices,)
+    elem = coll
+    for idx in indices[:-1]:
+        elem = elem[idx]
+    elem[indices[-1]] = value
 
 
 def nest(first, *others):

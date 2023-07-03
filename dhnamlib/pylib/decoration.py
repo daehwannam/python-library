@@ -103,25 +103,33 @@ def curry(func, *args, **kwargs):
 
 
 @curry
-def cache(func, maxsize=None):
+def lru_cache(func, maxsize=None):
     return functools.lru_cache(maxsize)(func)
 
 
 def cached_property(func):
-    return property(cache(func))
+    return property(lru_cache(func))
 
 
 def id_cache(func):
     """
     Keep a cache of previous function calls.
-    It's similar to functools.lru_cache, but use IDs of arguments for computing keys.
+    It uses IDs of arguments for computing keys.
     """
 
+    def key(*args, **kwargs):
+        return tuple(itertools.chain(map(id, args), sorted((k, id(v)) for k, v in kwargs.items())))
+
+    return keyed_cache(key, func)
+
+
+@curry
+def keyed_cache(key, func):
     cache_memory = {}
 
     @functools.wraps(func)
     def cached_func(*args, **kwargs):
-        cache_key = tuple(itertools.chain(map(id, args), sorted((k, id(v)) for k, v in kwargs.items())))
+        cache_key = key(*args, **kwargs)
         if cache_key not in cache_memory:
             cache_memory[cache_key] = func(*args, **kwargs)
         return cache_memory[cache_key]
@@ -343,7 +351,7 @@ class LazyValue:
 
 
 @curry
-def construct(construct_fn, func, /):
+def construct(construct_fn, func, /, from_kwargs=False):
     '''
     Example
 
@@ -356,9 +364,14 @@ def construct(construct_fn, func, /):
     {0: '0', 1: '1', 2: '2', 3: '3', 4: '4'}
     '''
 
-    @functools.wraps(func)
-    def decorated_func(*args, **kwargs):
-        return construct_fn(func(*args, **kwargs))
+    if from_kwargs:
+        @functools.wraps(func)
+        def decorated_func(*args, **kwargs):
+            return construct_fn(**dict(func(*args, **kwargs)))
+    else:
+        @functools.wraps(func)
+        def decorated_func(*args, **kwargs):
+            return construct_fn(func(*args, **kwargs))
 
     return decorated_func
 
@@ -371,6 +384,16 @@ def variable(func):
 
     >>> num_list
     [1, 2, 3, 4]
+    '''
+    return func()
+
+
+def running(func):
+    '''
+    >>> @executing
+    ... def print_hello():
+    ...    print('hello')
+    hello
     '''
     return func()
 

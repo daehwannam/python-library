@@ -6,7 +6,7 @@ import shutil
 import os
 # from contextlib import contextmanager  # https://realpython.com/python-with-statement/#creating-function-based-context-managers
 
-from .lazy import LazyEval, eval_if_lazy
+from .lazy import LazyEval, eval_lazy_obj, get_eval_obj_unless_lazy
 from .decoration import deprecated
 from . import filesys
 
@@ -73,7 +73,7 @@ class Environment:
         for local_env in reversed(self._stack):
             if name in local_env:
                 value = local_env[name]
-                return eval_if_lazy(value)
+                return eval_lazy_obj(value)
         raise AttributeError(f'no such variable "{name}" in the local_env')
 
     def __setattr__(self, name, value):
@@ -96,15 +96,13 @@ class Environment:
         self._stack[-1].update(pairs, **kwargs)
 
     def items(self, lazy=True):
+        eval_obj_unless_lazy = get_eval_obj_unless_lazy(lazy)
         keys = set()
         for local_env in reversed(self._stack):
             for key, value in local_env.items():
                 if key not in keys:
                     keys.add(key)
-                    if lazy:
-                        yield key, value
-                    else:
-                        yield key, eval_if_lazy(value)
+                    yield key, eval_obj_unless_lazy(value)
 
     def __contains__(self, name):
         for local_env in reversed(self._stack):
@@ -230,8 +228,8 @@ class _ReplaceDirectory:
         self.force = force
 
     def __enter__(self):
-        if not os.isdir(self.dir_path):
-            if os.isfile(self.dir_path):
+        if not os.path.isdir(self.dir_path):
+            if os.path.isfile(self.dir_path):
                 raise Exception(f'"{self.dir_path}" is a file rather than a directory')
             elif self.force:
                 os.makedirs(self.dir_path)
