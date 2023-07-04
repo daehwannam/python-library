@@ -122,7 +122,7 @@ def sparse_kmeans(examples, K, max_num_iters=float('inf')):
         return l2_loss
     # ============================================================= PRE-COMPUTING NORMS
 
-    for iter_cnt in iter_util.erange(max_num_iters):
+    for iter_cnt in iter_util.exrange(max_num_iters):
         prev_assignments = assignments
         assignments = [None] * len(examples)
 

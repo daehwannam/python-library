@@ -573,7 +573,7 @@ class SimpleDataset(torch.utils.data.Dataset):
 
 def batch_sequence_tensors(sequence_tensors, padding_value=0, init_fn=None):
     '''
-    :param sequence_tensors: A list of tensors whose shape is (seq_length, *).
+    :param sequence_tensors: A list of tensors where the shape of a tensor is represented as (seq_length, *).
     All tensors can have a different seq_length but should have the same size ('*') except the seq_length.
 
     Example:

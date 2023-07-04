@@ -3,9 +3,6 @@ from torch.optim.optimizer import Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 
 
-# The scheduler code is copied from KQAPro_Baselines:
-# https://github.com/shijx12/KQAPro_Baselines/blob/7cea2738fd095a2c17594d492923ee80a212ac0f/utils/lr_scheduler.py
-
 def get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps,
                                     first_value=None, last_value=None, last_epoch=-1):
     """
@@ -15,6 +12,9 @@ def get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_st
     When `num_warmup_steps == 1`, the learning rate decreases only.
     When `num_warmup_steps == num_training_steps`, the learning rate increases only.
     When `num_warmup_steps == num_training_steps == 1`, the learning rate is always 1.
+
+    This scheduler is modified from `transformers.get_linear_schedule_with_warmup`:
+    https://huggingface.co/docs/transformers/main_classes/optimizer_schedules#transformers.get_linear_schedule_with_warmup
     """
 
     assert num_warmup_steps >= 1

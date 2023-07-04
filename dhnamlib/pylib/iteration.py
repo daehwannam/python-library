@@ -1,5 +1,7 @@
 
 import itertools
+import importlib
+
 from .function import identity
 from .constant import NO_VALUE
 from .exception import DuplicateValueError, NotFoundError
@@ -430,15 +432,15 @@ class iterate:
             return True
 
 
-def erange(*args):
+def exrange(*args):
     '''
     Extended range.
 
     Example:
 
-    >>> tuple(zip('abcdefg', erange(1, float('inf'))))
+    >>> tuple(zip('abcdefg', exrange(1, float('inf'))))
     (('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6), ('g', 7))
-    >>> tuple(zip('abcdefg', erange(-1, '-inf', -1)))
+    >>> tuple(zip('abcdefg', exrange(-1, '-inf', -1)))
     (('a', -1), ('b', -2), ('c', -3), ('d', -4), ('e', -5), ('f', -6), ('g', -7))
     '''
 
@@ -749,3 +751,30 @@ def chainelems(coll):
 def reversed_enumerate(coll, length=None):
     length = length or len(coll)
     return zip(range(length - 1, -1, -1), reversed(coll))
+
+
+if importlib.util.find_spec('tqdm') is not None:
+    from tqdm import tqdm
+
+    def xtqdm(*args, desc_fn=None, **kwargs):
+        '''
+        Extended tqdm
+
+        Example:
+        >>> import time                                                   # doctest: +SKIP
+        >>> for idx in xtqdm(range(5), desc='no item is finished',        # doctest: +SKIP
+        ...                  desc_fn=lambda: f'item {idx} is finished'):  # doctest: +SKIP
+        ...     time.sleep(1)                                             # doctest: +SKIP
+        '''
+
+        pbar = tqdm(*args, **kwargs)
+
+        if kwargs.get('desc') is None:
+            if desc_fn is not None:
+                pbar.set_description(desc_fn())
+
+        for obj in pbar:
+            yield obj
+            if desc_fn is not None:
+                pbar.set_description(desc_fn())
+
