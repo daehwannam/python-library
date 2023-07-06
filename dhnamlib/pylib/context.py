@@ -111,6 +111,12 @@ class Environment:
         else:
             return False
 
+    def get(self, name, default=None):
+        if name in self:
+            return self.__getattr__(name)
+        else:
+            return default
+
     def decorate(self, func):
         signature = inspect.signature(func)
 

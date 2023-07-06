@@ -1,9 +1,12 @@
 
 import functools
+from typing import List, Callable
+
 from transformers import LogitsProcessor
 import torch
 
-from dhnamlib.pylib.iteration import apply_recursively
+from ..iteration import apply_recursively
+from ..torchlib.dnn import mask_tensor, masked_log_softmax
 
 
 def iter_token_ids(tokenizer):
@@ -71,3 +74,36 @@ def logit_rescaling(logits_processor: LogitsProcessor, num_beams=None):
         return new_logits
 
     return new_logits_processor
+
+
+class MaskedLogitsProcessor(LogitsProcessor):
+    r"""
+    [`LogitsProcessor`] that enforces constrained generation with masking.
+
+    Args:
+        prefix_to_mask_fn: (`Callable[[int, torch.Tensor], List[int]]`):
+            This function takes a prefix token id sequence and generates a mask tensor
+            that constrains candidate token ids in the next step. This function takes 2
+            arguments `inputs_ids` and the batch ID `batch_id`. The mask has two values,
+            0 and 1. Token ids with 0 values should get penalties and token ids with 1 values
+            get no penalties.
+    """
+
+    def __init__(self, prefix_to_mask_fn: Callable[[int, torch.Tensor], List[int]], num_beams: int, renormalizing: bool):
+        self._prefix_to_mask_fn = prefix_to_mask_fn
+        self._num_beams = num_beams
+        self.renormalizing = renormalizing
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        masks = []
+        for batch_id, beam_sent in enumerate(input_ids.view(-1, self._num_beams, input_ids.shape[-1])):
+            for beam_id, sent in enumerate(beam_sent):
+                masks.append(self._prefix_to_mask_fn(batch_id, sent))
+
+        stacked_mask = torch.stack(masks, dim=0)
+        if self.renormalizing:
+            log_probs = masked_log_softmax(scores, mask=stacked_mask, dim=-1)
+        else:
+            log_probs = mask_tensor(scores, mask=stacked_mask, value=float('-inf'))
+
+        return log_probs

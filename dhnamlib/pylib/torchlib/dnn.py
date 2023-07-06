@@ -216,6 +216,24 @@ def max_over_index(tensor, index):
     return max_values
 
 
+def mask_tensor(tensor, mask, value):
+    '''
+    :param tensor:
+    :param mask: a tensor with the same size with `tensor`, whose dtype is torch.int64 or torch.bool.
+    If dtype=torchl.int64, a mask value is 0 or 1.
+    :param value:
+    '''
+    if mask.dtype == torch.int64:
+        fill_mask = (1 - mask)
+    elif mask.dtype == torch.bool:
+        fill_mask = mask.logical_not()
+    else:
+        raise Exception('unexpected dtype')
+
+    masked_tensor = tensor.masked_fill(fill_mask, value)
+    return masked_tensor
+
+
 def _masked_softmax(softmax_fn, input, mask=None, *args, **kwargs):
     if mask is None:
         # _mask = torch.ones(input.size(), device=input.device)
@@ -226,11 +244,13 @@ def _masked_softmax(softmax_fn, input, mask=None, *args, **kwargs):
         else:
             assert isinstance(mask, torch.Tensor)
             _mask = mask.to(input.device)
-        masked_input = input.masked_fill((1 - _mask.int()).bool(), float('-inf'))
+
+        masked_input = mask_tensor(input, _mask, float('-inf'))
 
     return softmax_fn(masked_input, *args, **kwargs)
 
 
+@deprecated
 def masked_softmax(input, mask=None, *args, **kwargs):
     return _masked_softmax(softmax_fn=F.softmax, input=input, mask=mask, *args, **kwargs)
 
