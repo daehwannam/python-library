@@ -378,15 +378,18 @@ def get_dim(coll):
 
 
 def _get_coll_size(coll):
-    _coll = coll
-    _size = []
-    while isinstance(_coll, (list, tuple)):
-        _size.append(len(_coll))
-        _coll = _coll[0]
-    if isinstance(_coll, torch.Tensor):
-        size = torch.Size(_size) + _coll.size()
+    if len(coll) > 0:
+        _coll = coll
+        _size = []
+        while isinstance(_coll, (list, tuple)):
+            _size.append(len(_coll))
+            _coll = _coll[0]
+        if isinstance(_coll, torch.Tensor):
+            size = torch.Size(_size) + _coll.size()
+        else:
+            size = torch.Size(_size)
     else:
-        size = torch.Size(_size)
+        size = torch.Size([0])
     return size
 
 
@@ -412,9 +415,10 @@ def candidate_ids_to_mask(candidate_ids, vocab_size, dtype=torch.long):
 
     size_but_last = get_size_but_last(candidate_ids)
     mask = torch.zeros(to_tuple(*size_but_last, vocab_size), dtype=dtype)
-    for indices in nest(*map(range, size_but_last)):
-        candidates = get_elem(candidate_ids, indices)
-        mask[to_tuple(*indices, candidates)] = 1
+    if len(size_but_last) > 0:
+        for indices in nest(*map(range, size_but_last)):
+            candidates = get_elem(candidate_ids, indices)
+            mask[to_tuple(*indices, candidates)] = 1
 
     if mask.dtype != dtype:
         mask = mask.type(dtype)

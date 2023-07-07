@@ -2,8 +2,10 @@
 import functools
 from typing import List, Callable
 
-from transformers import LogitsProcessor
 import torch
+from transformers import LogitsProcessor
+from transformers.file_utils import add_start_docstrings
+from transformers.generation_logits_process import LOGITS_PROCESSOR_INPUTS_DOCSTRING
 
 from ..iteration import apply_recursively
 from ..torchlib.dnn import mask_tensor, masked_log_softmax
@@ -94,13 +96,15 @@ class MaskedLogitsProcessor(LogitsProcessor):
         self._num_beams = num_beams
         self.renormalizing = renormalizing
 
+    @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        # input_ids is a shape of (batch_size * num_beams, sequence_length)
         masks = []
         for batch_id, beam_sent in enumerate(input_ids.view(-1, self._num_beams, input_ids.shape[-1])):
             for beam_id, sent in enumerate(beam_sent):
                 masks.append(self._prefix_to_mask_fn(batch_id, sent))
 
-        stacked_mask = torch.stack(masks, dim=0)
+        stacked_mask = torch.stack(masks, dim=0).to(input_ids.dtype)
         if self.renormalizing:
             log_probs = masked_log_softmax(scores, mask=stacked_mask, dim=-1)
         else:
