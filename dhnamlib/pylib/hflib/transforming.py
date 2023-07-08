@@ -8,6 +8,8 @@ from transformers.file_utils import add_start_docstrings
 from transformers.generation_logits_process import LOGITS_PROCESSOR_INPUTS_DOCSTRING
 
 from ..iteration import apply_recursively
+from ..decoration import deprecated
+
 from ..torchlib.dnn import mask_tensor, masked_log_softmax
 
 
@@ -61,23 +63,26 @@ def join_tokens(
 
 
 def logit_rescaling(logits_processor: LogitsProcessor, num_beams=None):
-    if num_beams is not None:
-        assert not hasattr(logits_processor, '_num_beams')
-        _num_beams = num_beams
-    elif hasattr(logits_processor, '_num_beams'):
-        _num_beams = getattr(logits_processor, '_num_beams')
-    else:
-        raise Exception('`num_beams` should be specified or inferenced from `logits_processor`')
+    # if num_beams is not None:
+    #     assert not hasattr(logits_processor, '_num_beams')
+    #     _num_beams = num_beams
+    # elif hasattr(logits_processor, '_num_beams'):
+    #     _num_beams = getattr(logits_processor, '_num_beams')
+    # else:
+    #     raise Exception('`num_beams` should be specified or inferenced from `logits_processor`')
 
     @functools.wraps(logits_processor)
     def new_logits_processor(*args, **kwargs):
         logits = logits_processor(*args, **kwargs)
+        # num_classes = logits.size()[-1]
+        # new_logits = torch.nn.functional.log_softmax(logits.view(-1, _num_beams, num_classes), dim=-1)
         new_logits = torch.nn.functional.log_softmax(logits, dim=-1)
         return new_logits
 
     return new_logits_processor
 
 
+@deprecated
 class MaskedLogitsProcessor(LogitsProcessor):
     r"""
     [`LogitsProcessor`] that enforces constrained generation with masking.

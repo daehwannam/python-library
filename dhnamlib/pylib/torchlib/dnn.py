@@ -224,7 +224,7 @@ def mask_tensor(tensor, mask, value):
     :param value:
     '''
     if mask.dtype == torch.int64:
-        fill_mask = (1 - mask)
+        fill_mask = (1 - mask).bool()
     elif mask.dtype == torch.bool:
         fill_mask = mask.logical_not()
     else:
