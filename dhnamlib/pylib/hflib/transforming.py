@@ -62,7 +62,7 @@ def join_tokens(
         **kwargs)
 
 
-def logit_rescaling(logits_processor: LogitsProcessor, num_beams=None):
+def logit_rescaling(logits_processor: LogitsProcessor, num_beams=None, postprocessing_nan=False):
     # if num_beams is not None:
     #     assert not hasattr(logits_processor, '_num_beams')
     #     _num_beams = num_beams
@@ -77,6 +77,13 @@ def logit_rescaling(logits_processor: LogitsProcessor, num_beams=None):
         # num_classes = logits.size()[-1]
         # new_logits = torch.nn.functional.log_softmax(logits.view(-1, _num_beams, num_classes), dim=-1)
         new_logits = torch.nn.functional.log_softmax(logits, dim=-1)
+
+        if postprocessing_nan:
+            # In `masked_log_softmax`, if all candidate scores are masked by setting the values as -inf,
+            # the output of `masked_log_softmax` includes nan values.
+            # This is problematic for `GenerationMixin.beam_search`.
+            # To fix the problem, the nan values are replaced as -inf.
+            new_logits[new_logits.isnan()] = float('-inf')
         return new_logits
 
     return new_logits_processor
