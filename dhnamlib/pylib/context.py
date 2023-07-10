@@ -1,14 +1,10 @@
 
 import inspect
 import functools
-import tempfile
-import shutil
-import os
 # from contextlib import contextmanager  # https://realpython.com/python-with-statement/#creating-function-based-context-managers
 
 from .lazy import LazyEval, eval_lazy_obj, get_eval_obj_unless_lazy
 from .decoration import deprecated
-from . import filesys
 
 # Environment
 # modified from https://stackoverflow.com/a/2002140/6710003
@@ -226,58 +222,3 @@ class _Block:
 
 
 block = _Block()
-
-
-class _ReplaceDirectory:
-    def __init__(self, dir_path, force=False):
-        self.dir_path = dir_path
-        self.force = force
-
-    def __enter__(self):
-        if not os.path.isdir(self.dir_path):
-            if os.path.isfile(self.dir_path):
-                raise Exception(f'"{self.dir_path}" is a file rather than a directory')
-            elif self.force:
-                os.makedirs(self.dir_path)
-            else:
-                raise Exception(f'"{self.dir_path}" does not exist')
-        parent_dir_path = filesys.get_parent_path(self.dir_path)
-        self.temp_dir_path = tempfile.mkdtemp(dir=parent_dir_path)
-        dir_octal_mode = filesys.get_octal_mode(self.temp_dir_path)
-        filesys.set_octal_mode(self.temp_dir_path, dir_octal_mode)
-        return self.temp_dir_path
-
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        shutil.rmtree(self.dir_path)
-        os.rename(self.temp_dir_path, self.dir_path)
-
-
-def replace_dir(dir_path, force=False):
-    '''
-    :param dir_path: The path to a directory
-    :param force: If force=True, ignore existence of the directory. Otherwise raise exception.
-
-    Example:
-
-    >>> dir_path = 'some-dir'
-    >>> os.makedirs(dir_path)
-    >>> with open(os.path.join(dir_path, 'some-file-1'), 'w') as f:
-    ...     pass
-    ...
-    >>> os.listdir(dir_path)
-    ['some-file-1']
-    >>> with replace_dir(dir_path) as temp_dir_path:
-    ...     with open(os.path.join(temp_dir_path, 'some-file-2'), 'w') as f:
-    ...         pass
-    ...
-    >>> os.listdir(dir_path)
-    ['some-file-2']
-    >>> shutil.rmtree(dir_path)  # remove the directory
-    '''
-    return _ReplaceDirectory(dir_path, force=force)
-
-
-def copy_dir(source, target, replacing=False, overwriting=False):
-    if replacing:
-        shutil.rmtree(target)
-    return shutil.copytree(source, target, dirs_exist_ok=overwriting)

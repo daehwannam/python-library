@@ -7,6 +7,11 @@ import pickle
 import logging
 import pprint
 import pathlib
+import tempfile
+import shutil
+import glob
+import re
+
 
 try:
     import jsonlines
@@ -291,3 +296,107 @@ def make_logger(name, log_file_path=None, to_stdout=True, overwriting=False, for
         logger.addHandler(console_handler)
 
     return logger
+
+
+class _ReplaceDirectory:
+    def __init__(self, dir_path, force=False):
+        self.dir_path = dir_path
+        self.force = force
+
+    def __enter__(self):
+        if not os.path.isdir(self.dir_path):
+            if os.path.isfile(self.dir_path):
+                raise Exception(f'"{self.dir_path}" is a file rather than a directory')
+            elif self.force:
+                os.makedirs(self.dir_path)
+            else:
+                raise Exception(f'"{self.dir_path}" does not exist')
+        parent_dir_path = get_parent_path(self.dir_path)
+        self.temp_dir_path = tempfile.mkdtemp(dir=parent_dir_path)
+        dir_octal_mode = get_octal_mode(self.temp_dir_path)
+        set_octal_mode(self.temp_dir_path, dir_octal_mode)
+        return self.temp_dir_path
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        shutil.rmtree(self.dir_path)
+        os.rename(self.temp_dir_path, self.dir_path)
+
+
+def replace_dir(dir_path, force=False):
+    '''
+    :param dir_path: The path to a directory
+    :param force: If force=True, ignore existence of the directory. Otherwise raise exception.
+
+    Example:
+
+    >>> dir_path = 'some-dir'
+    >>> os.makedirs(dir_path)
+    >>> with open(os.path.join(dir_path, 'some-file-1'), 'w') as f:
+    ...     pass
+    ...
+    >>> os.listdir(dir_path)
+    ['some-file-1']
+    >>> with replace_dir(dir_path) as temp_dir_path:
+    ...     with open(os.path.join(temp_dir_path, 'some-file-2'), 'w') as f:
+    ...         pass
+    ...
+    >>> os.listdir(dir_path)
+    ['some-file-2']
+    >>> shutil.rmtree(dir_path)  # remove the directory
+    '''
+    return _ReplaceDirectory(dir_path, force=force)
+
+
+def copy_dir(source, target, replacing=False, overwriting=False):
+    if replacing:
+        shutil.rmtree(target)
+    return shutil.copytree(source, target, dirs_exist_ok=overwriting)
+
+
+def get_numbers_in_path(prefix=None, suffix=None, num_type=int):
+    glob_pattern = ''.join([
+        '' if prefix is None else prefix,
+        '*',
+        '' if suffix is None else suffix
+    ])
+    dir_paths = glob.glob(glob_pattern)
+
+    if len(dir_paths) > 0:
+        regex_pattern = ''.join([
+            r'' if prefix is None else prefix,
+            r'([0-9]+)+',
+            r'' if suffix is None else suffix
+        ])
+        regex_obj = re.compile(regex_pattern)
+
+        def iter_test_numbers():
+            for dir_path in dir_paths:
+                match_obj = regex_obj.match(dir_path)
+                if match_obj is not None:
+                    yield num_type(match_obj.group(1))
+        numbers = sorted(iter_test_numbers())
+    else:
+        numbers = []
+
+    return numbers
+
+
+def get_new_path_with_number(prefix=None, suffix=None, num_type=int, starting_num=0, no_first_num=False, no_first_suffix=False):
+    numbers = get_numbers_in_path(prefix=prefix, suffix=suffix, num_type=num_type)
+    if len(numbers) > 0:
+        new_number_str = str(max(numbers) + 1)
+    else:
+        if no_first_num:
+            new_number_str = ''
+        else:
+            new_number_str = str(starting_num)
+
+        if no_first_suffix:
+            suffix = ''
+
+    new_path = ''.join([
+        '' if prefix is None else prefix,
+        new_number_str,
+        '' if suffix is None else suffix
+    ])
+    return new_path

@@ -13,7 +13,7 @@ def get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_st
     When `num_warmup_steps == num_training_steps`, the learning rate increases only.
     When `num_warmup_steps == num_training_steps == 1`, the learning rate is always 1.
 
-    This scheduler is modified from `transformers.get_linear_schedule_with_warmup`:
+    This scheduler is modified from `transformers.optimization.get_linear_schedule_with_warmup`:
     https://huggingface.co/docs/transformers/main_classes/optimizer_schedules#transformers.get_linear_schedule_with_warmup
     """
 
