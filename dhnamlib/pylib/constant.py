@@ -6,4 +6,3 @@ class AbstractType:
 Abstract = AbstractType()
 
 NO_VALUE = object()
-

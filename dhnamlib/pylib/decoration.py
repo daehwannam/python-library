@@ -6,6 +6,7 @@ import warnings
 from contextlib import ContextDecorator
 
 from . import filesys
+from .constant import NO_VALUE
 
 
 def curry(func, *args, **kwargs):
@@ -388,14 +389,18 @@ def variable(func):
     return func()
 
 
-def running(func):
+@curry
+def running(func, no_return=True):
     '''
-    >>> @executing
+    >>> @running
     ... def print_hello():
     ...    print('hello')
     hello
     '''
-    return func()
+    result = func()
+    if no_return:
+        result is None
+    return func
 
 
 def attribute(obj):
@@ -422,14 +427,15 @@ def attribute(obj):
     return decorator
 
 
-class excepting(ContextDecorator):
+@deprecated
+class _handle_exception(ContextDecorator):
     '''
     A decorator for exception handling.
 
     Example:
 
-    >>> @excepting((TypeError, ValueError), lambda e: print(e))
-    ... @excepting(ZeroDivisionError, lambda e: print('oops'))
+    >>> @_handle_exception((TypeError, ValueError), lambda e: print(e))
+    ... @_handle_exception(ZeroDivisionError, lambda e: print('oops'))
     ... def bad_idea(x):
     ...     return 1/x
 
@@ -452,7 +458,49 @@ class excepting(ContextDecorator):
 
     def __exit__(self, exc_type, exception, traceback):
         if isinstance(exception, self.catch):
-            self.handler(exception)
+            handler_return = self.handler(exception)
+            assert handler_return is None
+
             # Return True to suppress the exception
             # https://stackoverflow.com/a/43946444
             return True
+
+
+def excepting(exception, default_fn=NO_VALUE, default_value=NO_VALUE):
+    '''
+    A decorator for exception handling.
+
+    Example:
+
+    >>> @excepting((TypeError, ValueError), default_fn=lambda *args, **kwargs: 'TypeError or ValueError occured')
+    ... @excepting(ZeroDivisionError, default_fn=lambda *args, **kwargs: 'ZeroDivisionError occured')
+    ... def bad_idea(x):
+    ...     return 1/x
+
+    >>> bad_idea(0)
+    'ZeroDivisionError occured'
+    >>> bad_idea('spam')
+    'TypeError or ValueError occured'
+    >>> bad_idea(1)
+    1.0
+    '''
+
+    if default_fn is NO_VALUE:
+        assert default_value is not NO_VALUE
+
+        def default_fn(*args, **kwargs):
+            return default_value
+    else:
+        assert default_value is NO_VALUE
+
+    def decorator(func):
+        def decorated(*args, **kwargs):
+            try:
+                result = func(*args, **kwargs)
+            except exception:
+                result = default_fn(*args, **kwargs)
+            return result
+
+        return decorated
+
+    return decorator
