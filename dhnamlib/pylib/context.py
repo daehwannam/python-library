@@ -5,6 +5,7 @@ import functools
 
 from .lazy import LazyEval, eval_lazy_obj, get_eval_obj_unless_lazy
 from .decoration import deprecated
+from .klass import Interface
 
 # Environment
 # modified from https://stackoverflow.com/a/2002140/6710003
@@ -47,6 +48,22 @@ class Environment:
     1033
     Before the 4th function call
     133
+
+    >>> env = Environment(a=100)
+    >>>
+    >>> # placeholders with default values
+    >>> @env
+    ... def func(u, w, x=env.ph.c(5), y=env.ph(5), z=env.ph(LazyEval(my_sum, 1, 2, 3, 4, 5))):
+    ...     return u + w + x + y + z
+    >>>
+    >>> with env(b=3, y=10):
+    ...     # `env.y` is set to 10, so the default value of parameter `y` in `func` is not used
+    ...     # 100 + 3 + 5 + 10 + my_sum(1, 2, 3, 4, 5) == 33
+    ...     print(func(u=env.a, w=env.b))
+    ...     print(func(u=env.a, w=env.b))
+    Calling my_sum
+    133
+    133
     """
     _setattr_enabled = True
 
@@ -70,14 +87,14 @@ class Environment:
             if name in local_env:
                 value = local_env[name]
                 return eval_lazy_obj(value)
-        raise AttributeError(f'no such variable "{name}" in the local_env')
+        raise EnvironmentAttributeError(f'no such variable "{name}" in the local_env')
 
     def __setattr__(self, name, value):
         if self._setattr_enabled:
             super().__setattr__(name, value)
         else:
-            # raise AttributeError("env variables can only be set by `with Environment.let()` or `Environment.update`")
-            raise AttributeError("Attributes can only be set by `with Environment.let()`")
+            # raise EnvironmentAttributeError("env variables can only be set by `with Environment.let()` or `Environment.update`")
+            raise EnvironmentAttributeError("Attributes can only be set by `with Environment.let()`")
 
     def let(self, pairs=(), **kwargs):
         # context manager for a dynamic env
@@ -164,6 +181,10 @@ class Environment:
             return self.let(**kwargs)
 
 
+class EnvironmentAttributeError(AttributeError):
+    pass
+
+
 _reserved_name_exceptoin_format_str = '"{name} is a reserved name'
 
 
@@ -186,6 +207,23 @@ class _PlaceholderFactory:
     def __getattr__(self, name):
         return _Placeholder(self.env, name)
 
+    def __call__(self, default_value):
+        return _PlaceholderFactoryWithDefault(self.env, default_value)
+
+
+class _PlaceholderFactoryWithDefault(_PlaceholderFactory):
+    interface = Interface(_PlaceholderFactory)
+
+    @interface.override
+    def __init__(self, env: Environment, default_value):
+        super().__init__(env)
+        self.default_value = default_value
+
+    @interface.override
+    def __getattr__(self, name):
+        return _PlaceholderWithDefaultValue(self.env, name, self.default_value)
+
+
 class _Placeholder:
     def __init__(self, env, name):
         self.env = env
@@ -193,6 +231,26 @@ class _Placeholder:
 
     def get_value(self):
         return self.env.__getattr__(self.name)
+
+    def __call__(self, default_value):
+        return _PlaceholderWithDefaultValue(self.env, self.name, default_value)
+
+
+class _PlaceholderWithDefaultValue(_Placeholder):
+    interface = Interface(_Placeholder)
+
+    @interface.override
+    def __init__(self, env, name, default_value):
+        super().__init__(env, name)
+        self.default_value = default_value
+
+    @interface.override
+    def get_value(self):
+        try:
+            return super().get_value()
+        except EnvironmentAttributeError:
+            return eval_lazy_obj(self.default_value)
+
 
 
 # block
