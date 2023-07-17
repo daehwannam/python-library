@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from . import rnnlib
 from ..decoration import deprecated
 # from ..decoration import variable
-from ..iteration import nest, get_elem, set_elem, all_same, firstelem
+from ..iteration import nest, get_elem, set_elem, all_same, firstelem, iterate
 
 
 class MyModule(nn.Module):
@@ -593,6 +593,58 @@ class SimpleDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.examples)
+
+
+class EpochRepeatingDataLoader():
+    '''
+    Example:
+
+    >>> examples = ['example-A', 'example-B', 'example-C', 'example-D']
+    >>> batch_size = 2
+    >>> shuffle = False
+
+    >>> num_epoch_repeats_1 = 3
+    >>> data_loader_1 = EpochRepeatingDataLoader(
+    ...     torch.utils.data.DataLoader(
+    ...         SimpleDataset(examples),
+    ...         batch_size=batch_size,
+    ...         shuffle=shuffle),
+    ...     num_epoch_repeats=num_epoch_repeats_1)
+    >>> len(data_loader_1)
+    6
+    >>> list(data_loader_1)
+    [['example-A', 'example-B'], ['example-C', 'example-D'], ['example-A', 'example-B'], ['example-C', 'example-D'], ['example-A', 'example-B'], ['example-C', 'example-D']]
+
+    >>> num_epoch_repeats_2 = 0.5
+    >>> data_loader_2 = EpochRepeatingDataLoader(
+    ...     torch.utils.data.DataLoader(
+    ...         SimpleDataset(examples),
+    ...         batch_size=batch_size,
+    ...         shuffle=shuffle),
+    ...     num_epoch_repeats=num_epoch_repeats_2)
+    >>> len(data_loader_2)
+    1
+    >>> list(data_loader_2)
+    [['example-A', 'example-B']]
+    '''
+
+    def __init__(self, data_loader, num_epoch_repeats):
+        self.data_loader = data_loader
+        self.num_epoch_repeats = num_epoch_repeats
+        self.iterator = None
+
+    @property
+    def batch_size(self):
+        return self.data_loader.batch_size
+
+    def __len__(self):
+        return round(self.num_epoch_repeats * len(self.data_loader))
+
+    def __iter__(self):
+        for iteration_idx in range(len(self)):
+            if not self.iterator:
+                self.iterator = iterate(self.data_loader)
+            yield next(self.iterator)
 
 
 def batch_sequence_tensors(sequence_tensors, padding_value=0, init_fn=None):
