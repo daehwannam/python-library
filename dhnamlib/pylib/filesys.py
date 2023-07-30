@@ -382,6 +382,16 @@ def get_numbers_in_path(prefix=None, suffix=None, num_type=int):
 
 
 def get_new_path_with_number(prefix=None, suffix=None, num_type=int, starting_num=0, no_first_num=False, no_first_suffix=False):
+    '''
+    Example:
+    >>> new_path = get_new_path_with_number(   # doctest: +SKIP
+            'some/common/path',                # doctest: +SKIP
+            starting_num=1, no_first_num=True  # doctest: +SKIP
+        )                                      # doctest: +SKIP
+    # the 1st call: 'some/common/path'
+    # the 2nd call: 'some/common/path1'
+    # the 3rd call: 'some/common/path2'
+    '''
     numbers = get_numbers_in_path(prefix=prefix, suffix=suffix, num_type=num_type)
     if len(numbers) > 0:
         new_number_str = str(max(numbers) + 1)
@@ -400,3 +410,14 @@ def get_new_path_with_number(prefix=None, suffix=None, num_type=int, starting_nu
         '' if suffix is None else suffix
     ])
     return new_path
+
+
+def copy_matched(glob_pattern, destination):
+    '''
+    Example:
+
+    >>> copy_matched('some/path/to/*' 'some/path/to/destination')  # doctest: +SKIP
+    '''
+    paths = glob.glob(glob_pattern)
+    for path in paths:
+        shutil.copy(path, destination)

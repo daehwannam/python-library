@@ -58,3 +58,27 @@ def compose(*functions):
         return functools.reduce(apply, rest_functions, first_function(*args, **kwargs))
 
     return composed
+
+
+def complement(func):
+    '''
+    >>> def is_zero(x):
+    ...    return x == 0
+    >>>
+    >>> is_non_zero = complement(is_zero)
+    >>> is_non_zero(0)
+    False
+    >>> is_non_zero(1)
+    True
+    '''
+
+    @functools.wraps(func)
+    def decorated_func(*args, **kwargs):
+        return not func(*args, **kwargs)
+
+    decorated_func.__name__ = 'complement__' + func.__name__
+
+    # qualname_splits = decorated_func.__qualname__.split('.')
+    # decorated_func.__qualname__ = '.'.join(qualname_splits[:-1] + ['complement__' + qualname_splits[-1]])
+
+    return decorated_func
