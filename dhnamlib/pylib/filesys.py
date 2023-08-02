@@ -138,20 +138,48 @@ class ExtendedJSONEncoder(json.JSONEncoder):
             return super().default(obj)
 
 
-class ExtendedJSONDecoder(json.JSONDecoder):
-    def default(self, obj):
-        if isinstance(obj, dict) and '__py__set' in obj:
-            return set(obj['__py__set'])
-        else:
-            return super().default(obj)
-
-
 def as_python_object_from_json(dic):
     # https://stackoverflow.com/a/8230373
     if '__py__set' in dic and len(dic) == 1:
         return set(dic['__py__set'])
     else:
         return dic
+
+
+# class ExtendedJSONDecoder(json.JSONDecoder):
+#     def default(self, obj):
+#         if isinstance(obj, dict) and '__py__set' in obj:
+#             return set(obj['__py__set'])
+#         else:
+#             return super().default(obj)
+
+
+def json_skip_types(*types):
+    '''
+    Example:
+
+    >>> data = [1, 2, 3, {'some_key': 'some_value'}, set(['an', 'set', 'example']), bytes([0, 1, 2, 3])]
+    >>> j = json.dumps(data, cls=json_skip_types(set, bytes))
+    >>> print(json.loads(j))
+    [1, 2, 3, {'some_key': 'some_value'}, "SKIP: <class 'set'>", "SKIP: <class 'bytes'>"]
+    '''
+
+    if len(types) == 1 and not isinstance(types[0], type):
+        types = types[0]
+
+    for typ in types:
+        assert isinstance(typ, type)
+    if isinstance(types, tuple):
+        types = tuple(types)
+
+    class SkippingJSONEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, types):
+                return f'SKIP: {str(type(obj))}'
+            else:
+                return super().default(obj)
+
+    return SkippingJSONEncoder
 
 
 def example_extended_json_encoder():
