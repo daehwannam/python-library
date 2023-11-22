@@ -748,6 +748,18 @@ def chainelems(coll):
             yield item
 
 
+def repeat_in_order(coll, num_repeats):
+    '''
+    Example:
+
+    >>> tuple(repeat_in_order([1, 2, 3, 4,], 3))
+    (1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4)
+    '''
+    for elem in coll:
+        for i in range(num_repeats):
+            yield elem
+
+
 def reversed_enumerate(coll, length=None):
     length = length or len(coll)
     return zip(range(length - 1, -1, -1), reversed(coll))
