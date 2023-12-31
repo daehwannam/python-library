@@ -10,7 +10,9 @@ import torch.nn.functional as F
 from . import rnnlib
 from ..decoration import deprecated
 # from ..decoration import variable
-from ..iteration import nest, get_elem, set_elem, all_same, firstelem, iterate
+from ..iteration import nest, get_elem, set_elem, all_same, firstelem, iterate, reversed_enumerate
+from ..hflib.acceleration import Acceleratable
+from ..klass import Interface
 
 
 class MyModule(nn.Module):
@@ -538,6 +540,42 @@ def pad_sequence(sequence, padding_value, dim=None, max_length=None, device=None
 
     return padded_sequence
 
+
+def unpad_sequence(sequence, padding_value, dim=None):
+    '''
+    >>> unpad_sequence([[[1, 2, 3, None], [4, 5, None, None]], [[6, 7, 8, 9]]], None)
+    [[[1, 2, 3], [4, 5]], [[6, 7, 8, 9]]]
+    >>> unpad_sequence([[[1, 2, 3], [4, 5], [None]], [[6, 7, 8, 9], [None], [None]]], [None], dim=1)
+    [[[1, 2, 3], [4, 5]], [[6, 7, 8, 9]]]
+    '''
+    if dim is None or dim == -1:
+        size_but_last = get_size_but_last(sequence)
+        dim = len(size_but_last)  # last dim
+
+    unpadded_sequence = []
+
+    def unpad_recursively(unpadded_seq, seq, depth):
+        if depth < dim:
+            for subseq in seq:
+                unpadded_subseq = []
+                unpadded_seq.append(unpadded_subseq)
+                unpad_recursively(unpadded_subseq, subseq, depth + 1)
+        else:
+            length = None
+            for idx, elem in reversed_enumerate(seq):
+                if elem != padding_value:
+                    length = idx + 1
+                    break
+            else:
+                length = 0
+
+            unpadded_seq.extend(seq[:length])
+
+    unpad_recursively(unpadded_sequence, sequence, 0)
+
+    return unpadded_sequence
+
+
 def _has_param_grad(param):
     grad = param.grad
     return grad is not None and bool((grad != 0).any())
@@ -595,7 +633,7 @@ class SimpleDataset(torch.utils.data.Dataset):
         return len(self.examples)
 
 
-class EpochRepeatingDataLoader():
+class EpochRepeatingDataLoader(Acceleratable):
     '''
     Example:
 
@@ -628,6 +666,8 @@ class EpochRepeatingDataLoader():
     [['example-A', 'example-B']]
     '''
 
+    interface = Interface(Acceleratable)
+
     def __init__(self, data_loader, num_epoch_repeats):
         self.data_loader = data_loader
         self.num_epoch_repeats = num_epoch_repeats
@@ -645,6 +685,14 @@ class EpochRepeatingDataLoader():
             if not self.iterator:
                 self.iterator = iterate(self.data_loader)
             yield next(self.iterator)
+
+    @interface.implement
+    def decompose(self):
+        yield self.data_loader
+
+    @interface.implement
+    def compose(self, data_loader):
+        return type(self)(data_loader, self.num_epoch_repeats)
 
 
 def batch_sequence_tensors(sequence_tensors, padding_value=0, init_fn=None):
@@ -687,3 +735,29 @@ def batch_sequence_tensors(sequence_tensors, padding_value=0, init_fn=None):
         batched_tensor[idx, :seq_length] = sequence_tensor
 
     return batched_tensor
+
+
+def except_last_tokens(tensor):
+    """
+    Remove last tokens.
+    The output is used as `decoder_input_ids`.
+    """
+
+    original_shape = tensor.shape
+    reshaped_tensor = tensor.view(-1, original_shape[-1])
+
+    truncated_tensor = reshaped_tensor[:, :-1].contiguous()
+    return truncated_tensor.view(original_shape[:-1] + (-1,))
+
+
+def except_first_tokens(tensor):
+    """
+    Remove first tokens.
+    The output is used as `labels`.
+    """
+
+    original_shape = tensor.shape
+    reshaped_tensor = tensor.view(-1, original_shape[-1])
+
+    truncated_tensor = reshaped_tensor[:, 1:].contiguous()
+    return truncated_tensor.view(original_shape[:-1] + (-1,))

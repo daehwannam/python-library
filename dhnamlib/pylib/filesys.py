@@ -326,6 +326,13 @@ def make_logger(name, log_file_path=None, to_stdout=True, overwriting=False, for
     return logger
 
 
+class NoLogger:
+    def do_nothing(self, *args, **kwargs):
+        pass
+
+    debug = info = warning = error = critical = exception = log = do_nothing
+
+
 class _ReplaceDirectory:
     def __init__(self, dir_path, force=False):
         self.dir_path = dir_path
@@ -444,8 +451,24 @@ def copy_matched(glob_pattern, destination):
     '''
     Example:
 
-    >>> copy_matched('some/path/to/*' 'some/path/to/destination')  # doctest: +SKIP
+    >>> copy_matched('some/path/to/*', 'some/path/to/destination')  # doctest: +SKIP
     '''
     paths = glob.glob(glob_pattern)
     for path in paths:
         shutil.copy(path, destination)
+
+
+def asserts_conditional_exist(path, existing):
+    if existing:
+        assert os.path.exists(path), f'The following path does not exist: {path}'
+    else:
+        assert not os.path.exists(path), f'The following path already exists: {path}'
+    return path
+
+
+def asserts_exist(path):
+    return asserts_conditional_exist(path, True)
+
+
+def asserts_not_exist(path):
+    return asserts_conditional_exist(path, False)

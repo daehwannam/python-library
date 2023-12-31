@@ -74,3 +74,10 @@ class TimeMeasure:
     @property
     def interval(self):
         return self._interval
+
+
+def get_time_seed(exponent=6):
+    exponential_num = 10 ** exponent
+    curr_time = time.time_ns()
+    time_seed = curr_time - (curr_time // exponential_num) * exponential_num
+    return time_seed

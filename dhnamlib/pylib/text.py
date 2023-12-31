@@ -43,3 +43,7 @@ def get_paren_index_pairs(s):
         print('Too many opening parentheses')
 
     return pairs
+
+
+def split_into_vars(s):
+    return s.replace(',', ' ').strip().split()

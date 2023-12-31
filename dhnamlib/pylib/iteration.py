@@ -618,7 +618,7 @@ def replace_with_last(items, idx):
     return item
 
 
-def split_by_indices(seq, indices):
+def split_by_indices(seq, indices, including_end_index=False):
     '''
     Example:
 
@@ -629,10 +629,31 @@ def split_by_indices(seq, indices):
     for idx in indices:
         yield seq[last_idx: idx]
         last_idx = idx
-    yield seq[last_idx:]
+
+    if including_end_index:
+        assert last_idx == len(seq)
+    else:
+        yield seq[last_idx:]
 
 
-def partition(seq, n, fill_value=NO_VALUE):
+def split_by_lengths(seq, lengths):
+    '''
+    Example:
+
+    >>> tuple(split_by_lengths(tuple(range(20)), [5, 10, 5]))
+    ((0, 1, 2, 3, 4), (5, 6, 7, 8, 9, 10, 11, 12, 13, 14), (15, 16, 17, 18, 19))
+    '''
+
+    indices = []
+    accumulated_length = 0
+    for length in lengths:
+        accumulated_length += length
+        indices.append(accumulated_length)
+
+    return split_by_indices(seq, indices, including_end_index=True)
+
+
+def partition(seq, n, fill_value=NO_VALUE, strict=True):
     # Similar to Hy's partition
     # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
     '''
@@ -642,39 +663,41 @@ def partition(seq, n, fill_value=NO_VALUE):
     (('a', 'b'), ('c', 'd'), ('e', 'f'), ('g', 'h'))
     >>> tuple(partition('abcdefg', 2, fill_value=None))
     (('a', 'b'), ('c', 'd'), ('e', 'f'), ('g', None))
+    >>> tuple(partition('abcdefg', 2, strict=False))
+    (('a', 'b'), ('c', 'd'), ('e', 'f'), ('g',))
     '''
 
-    strict = fill_value is NO_VALUE
+    assert isinstance(n, int)
+    assert n > 0
 
-    # assert not strict or fill_value is None
-    it = iter(seq)
-    remaining = True
+    if n == 1:
+        for item in seq:
+            yield (item,)
+    else:
+        iterator = iterate(seq)
 
-    def get_next_item():
-        nonlocal remaining
-        try:
-            return next(it)
-        except StopIteration:
-            remaining = False
-            return fill_value
-
-    while remaining:
-        first_item = get_next_item()
-        if remaining:
+        while iterator:
+            first_item = next(iterator)
             items = [first_item]
-            if strict:
+
+            if fill_value is NO_VALUE:
                 for _ in range(n - 1):
-                    item = get_next_item()
-                    if remaining:
-                        items.append(item)
-                    else:
-                        raise Exception('The total number of items is not divided by {}'.format(n))
+                    try:
+                        items.append(next(iterator))
+                    except StopIteration:
+                        if strict:
+                            raise Exception('The total number of items is not divided by {}'.format(n))
+                        else:
+                            break
             else:
-                items.extend(get_next_item() for _ in range(n - 1))
+                for _ in range(n - 1):
+                    try:
+                        items.append(next(iterator))
+                    except StopIteration:
+                        for _ in range(n - len(items)):
+                            items.append(fill_value)
+                        break
             yield tuple(items)
-        else:
-            yield from ()
-            break
 
 
 def flatten(coll, coll_type=None):
@@ -760,9 +783,13 @@ def repeat_in_order(coll, num_repeats):
             yield elem
 
 
+def reversed_range(length):
+    return range(length - 1, -1, -1)
+
+
 def reversed_enumerate(coll, length=None):
     length = length or len(coll)
-    return zip(range(length - 1, -1, -1), reversed(coll))
+    return zip(reversed_range(length), reversed(coll))
 
 
 if importlib.util.find_spec('tqdm') is not None:
@@ -790,3 +817,25 @@ if importlib.util.find_spec('tqdm') is not None:
             if desc_fn is not None:
                 pbar.set_description(desc_fn())
 
+    def utqdm(*args, unit, update_fn, repr_format='{:}', init_repr=None, **kwargs):
+        '''
+        Unit tqdm
+
+        Example:
+        >>> import time                                       # doctest: +SKIP
+        >>> numbers = list(range(10))                         # doctest: +SKIP
+        >>> accum = 0                                         # doctest: +SKIP
+        >>> for num in utqdm(numbers,                         # doctest: +SKIP
+        ...                  unit='number',                   # doctest: +SKIP
+        ...                  update_fn=lambda: accum,         # doctest: +SKIP
+        ...                  repr_format='{:5.2f}',           # doctest: +SKIP
+        ...                  init_repr='none'):               # doctest: +SKIP
+        ...    time.sleep(1)                                  # doctest: +SKIP
+        ...    accum += num                                   # doctest: +SKIP
+        '''
+
+        desc_kwargs = dict(not_none_valued_pairs(
+            desc='{}: {}'.format(unit, init_repr) if init_repr is not None else None,
+            desc_fn=lambda: ('{}: ' + repr_format).format(unit, update_fn())))
+
+        return xtqdm(*args, **desc_kwargs, **kwargs)

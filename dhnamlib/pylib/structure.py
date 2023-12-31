@@ -1,10 +1,13 @@
 
 import re
 import warnings
+from argparse import Namespace
 
 from .iteration import distinct_pairs
 from .exception import DuplicateValueError
 from .lazy import LazyEval, eval_lazy_obj, get_eval_obj_unless_lazy
+from .decoration import id_cache
+from .constant import NO_VALUE
 
 
 class AttrDict(dict):
@@ -41,6 +44,80 @@ class AttrDict(dict):
 #         return type(obj)(get_recursive_attr_dict(elem) for elem in obj)
 #     else:
 #         return obj
+
+
+class XNamespace(Namespace):
+    """Extended Namespace
+
+    >>> ns = XNamespace(a='A', b='B', c='C')
+    >>> print(len(ns))
+    3
+    >>> print(ns.pop('a'))
+    A
+    >>> print(len(ns))
+    2
+    >>> print(ns.pop(b=False))
+    B
+    >>> print(len(ns))
+    2
+    >>> print(ns.pop(b=True))
+    B
+    >>> print(len(ns))
+    1
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __bool__(self):
+        return bool(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    @property
+    @id_cache
+    def popper(self):
+        return AttrPopper(self)
+
+    def pop(self, key=NO_VALUE, popping=True, **kwargs):
+        if key is NO_VALUE:
+            assert len(kwargs) == 1
+            [[key, popping]] = kwargs.items()
+        else:
+            assert len(kwargs) == 0
+
+        value = self.__dict__[key]
+        if popping:
+            del self.__dict__[key]
+
+        return value
+
+    def __iter__(self):
+        return self.__dict__.__iter__()
+
+    def items(self):
+        return self.__dict__.items()
+
+
+class AttrPopper:
+    """
+    >>> ns = XNamespace(a='A', b='B')
+    >>> print(len(ns))
+    2
+    >>> print(ns.popper.a)
+    A
+    >>> print(len(ns))
+    1
+    """
+
+    def __init__(self, namespace):
+        self.namespace = namespace
+
+    def __getattr__(self, key):
+        value = getattr(self.namespace, key)
+        delattr(self.namespace, key)
+        return value
 
 
 class LazyDict(dict):
@@ -293,8 +370,8 @@ class abidict(dict):
     >>> dic = abidict(a=10, b=20, c=10)
     >>> dic
     {'a': 10, 'b': 20, 'c': 10}
-    >>> dic.inverse
-    {10: {'c', 'a'}, 20: {'b'}}
+    >>> dic.inverse              # doctest: +SKIP
+    {10: {'c', 'a'}, 20: {'b'}}  # doctest: +SKIP
     '''
 
     def __init__(self, *args, **kwargs):

@@ -82,3 +82,8 @@ def complement(func):
     # decorated_func.__qualname__ = '.'.join(qualname_splits[:-1] + ['complement__' + qualname_splits[-1]])
 
     return decorated_func
+
+
+def asserts(obj, fn):
+    assert fn(obj)
+    return obj

@@ -280,3 +280,104 @@ class _Block:
 
 
 block = _Block()
+
+
+class contextless:
+    '''
+    It does not perform any additional operation.
+
+    Example:
+
+    >>> with contextless():
+    ...   numbers = list(range(5))
+    ...   numbers = [x * 2 for x in numbers]
+    ...
+    >>> print(numbers)
+    [0, 2, 4, 6, 8]
+    '''
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        pass
+
+
+def make_skip_context(error_cls=Exception, default=None):
+    '''
+    It does not perform any additional operation.
+
+    Example:
+
+    saving = False
+    context = open if saving else make_skip_context(error_cls=AssertionError, default=None)
+    file_path = 'test.txt'
+
+    >>> with context(file_path, 'w') as f:
+    ...   assert f is not None
+    ...   numbers = list(range(5))
+    ...   numbers = [x * 2 for x in numbers]
+    ...
+    >>> print(numbers)
+    [0, 2, 4, 6, 8]
+    '''
+
+    class skip_context:
+        def __init__(self, *args, **kwargs):
+            self.error_cls = error_cls
+            return default
+
+        def __enter__(self):
+            pass
+
+        def __exit__(self, exc_type, exc_value, exc_tb):
+            if exc_type is self.error_cls:
+                return True
+            else:
+                return False
+
+    return skip_context
+
+
+class skippable:
+    '''
+    It does not perform any additional operation.
+
+    Example:
+
+    >>> saving = False
+    >>> context = open if saving else skippable
+    >>> file_path = 'test.txt'
+
+    >>> with context(file_path, 'w') as f:
+    ...   skip_if_possible(f)
+    ...   print('Before saving text.')
+    ...   f.write('Some text to be written.')
+    '''
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        return _SKIPPABLE_OBJ
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if exc_type is _SkippableError:
+            return True
+        else:
+            return False
+
+
+class _SkippableError(Exception):
+    pass
+
+
+_SKIPPABLE_OBJ = object()
+
+
+def skip_if_possible(obj):
+    if obj is _SKIPPABLE_OBJ:
+        raise _SkippableError

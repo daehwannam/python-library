@@ -85,7 +85,7 @@ def curry(func, *args, **kwargs):
     return make_curried(args, kwargs)
 
 
-# def cache(func):
+# def _cache(func):
 #     """keep a cache of previous function calls.
 #     it's similar to functools.lru_cache"""
 
@@ -104,12 +104,12 @@ def curry(func, *args, **kwargs):
 
 
 @curry
-def lru_cache(func, maxsize=None):
+def cache(func, maxsize=None):
     return functools.lru_cache(maxsize)(func)
 
 
 def cached_property(func):
-    return property(lru_cache(func))
+    return property(cache(func))
 
 
 def id_cache(func):
@@ -494,6 +494,7 @@ def excepting(exception, default_fn=NO_VALUE, default_value=NO_VALUE):
         assert default_value is NO_VALUE
 
     def decorator(func):
+        @functools.wraps(func)
         def decorated(*args, **kwargs):
             try:
                 result = func(*args, **kwargs)
@@ -504,3 +505,29 @@ def excepting(exception, default_fn=NO_VALUE, default_value=NO_VALUE):
         return decorated
 
     return decorator
+
+
+def to_variables(func):
+    '''
+    Make a function whose result is assigned to one variable or more variables.
+
+    Example:
+
+    >>> @to_variables
+    ... def square(*args):
+    ...     return [arg ** 2 for arg in args]
+
+    >>> a, b, c = square(1, 2, 3)
+    >>> d = square(4)
+    >>> print(a, b, c, d)
+    1 4 9 16
+    '''
+
+    @functools.wraps(func)
+    def decorated(*args, **kwargs):
+        return_values = func(*args, **kwargs)
+        if len(return_values) == 1:
+            return return_values[0]
+        else:
+            return return_values
+    return decorated

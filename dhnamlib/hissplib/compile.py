@@ -13,6 +13,8 @@ def lissp_to_hissp(lissp_expr):
 def eval_lissp(code, ns=None, extra_ns=None):
     if ns is None:
         # merging globals and locals
+        # ns = {**inspect.stack()[1].frame.f_globals,
+        #       **inspect.stack()[1].frame.f_locals}
         ns = {**inspect.stack()[1][0].f_globals,
               **inspect.stack()[1][0].f_locals}
 
