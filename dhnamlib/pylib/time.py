@@ -1,6 +1,7 @@
 
 import time
 import signal
+import datetime
 from contextlib import contextmanager
 
 
@@ -76,8 +77,30 @@ class TimeMeasure:
         return self._interval
 
 
-def get_time_seed(exponent=6):
-    exponential_num = 10 ** exponent
+def get_time_seed(max_num_digits=6):
+    exponential_num = 10 ** max_num_digits
     curr_time = time.time_ns()
     time_seed = curr_time - (curr_time // exponential_num) * exponential_num
     return time_seed
+
+
+def old_get_ymdhms(dt: datetime.datetime = None):
+    def td(num):
+        '''Convert a number to a two-digit string'''
+        # https://stackoverflow.com/a/15509693
+        return '{:02d}'.format(num)
+
+    if dt is None:
+        dt = datetime.datetime.now()
+
+    return '{year}{month}{day}.{hour}{minute}{second}'.format(
+        year=dt.year, month=td(dt.month), day=td(dt.day),
+        hour=td(dt.hour), minute=td(dt.minute), second=td(dt.second))
+
+
+def get_YmdHMSf(dt: datetime.datetime = None):
+    if dt is None:
+        dt = datetime.datetime.now()
+
+    initial_date_str = dt.strftime("%Y-%m-%d_%H:%M:%S_%f")
+    return initial_date_str

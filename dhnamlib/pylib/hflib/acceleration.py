@@ -249,31 +249,3 @@ def alternate_object(obj, batch_size):
         assert not part_iterators[process_idx]
 
     return alternated_part_seq
-
-
-def _alternate_object_2(obj, batch_size):
-    local_part_seq = tuple(partition(obj, batch_size, strict=False))
-    part_seqs = gather_object([local_part_seq])
-    num_processes = len(part_seqs)
-    elem_indices = [0] * num_processes
-
-    alternated_part_seq = []
-
-    def pop_elem(process_idx):
-        elem = part_seqs[process_idx][elem_indices[process_idx]]
-        elem_indices[process_idx] += 1
-        return elem
-
-    def is_remaining(process_idx):
-        return elem_indices[process_idx] < len(part_seqs[process_idx])
-
-    process_idx = 0
-    while is_remaining(process_idx):
-        alternated_part_seq.extend(pop_elem(process_idx))
-        process_idx = (process_idx + 1) % num_processes
-
-    for process_idx in range(num_processes):
-        assert not is_remaining(process_idx)
-
-    return alternated_part_seq
-

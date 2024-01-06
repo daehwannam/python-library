@@ -126,8 +126,9 @@ def touch_with_mkpdirs(path):
     touch(path)
 
 
-def get_parent_path(path):
-    return pathlib.Path(path).parent.as_posix()
+def get_parent_path(path, depth=1):
+    assert depth >= 1
+    return pathlib.Path(path).parents[depth - 1].as_posix()
 
 
 class ExtendedJSONEncoder(json.JSONEncoder):
@@ -334,33 +335,37 @@ class NoLogger:
 
 
 class _ReplaceDirectory:
-    def __init__(self, dir_path, force=False):
+    def __init__(self, dir_path, strict=True):
         self.dir_path = dir_path
-        self.force = force
+        self.strict = strict
 
     def __enter__(self):
         if not os.path.isdir(self.dir_path):
             if os.path.isfile(self.dir_path):
                 raise Exception(f'"{self.dir_path}" is a file rather than a directory')
-            elif self.force:
-                os.makedirs(self.dir_path)
-            else:
+            elif self.strict:
                 raise Exception(f'"{self.dir_path}" does not exist')
+            else:
+                os.makedirs(self.dir_path)
         parent_dir_path = get_parent_path(self.dir_path)
         self.temp_dir_path = tempfile.mkdtemp(dir=parent_dir_path)
-        dir_octal_mode = get_octal_mode(self.temp_dir_path)
+        dir_octal_mode = get_octal_mode(self.dir_path)
         set_octal_mode(self.temp_dir_path, dir_octal_mode)
         return self.temp_dir_path
 
     def __exit__(self, exc_type, exc_value, exc_tb):
+        if (exc_type, exc_value, exc_tb) != (None, None, None):
+            return False
+
         shutil.rmtree(self.dir_path)
         os.rename(self.temp_dir_path, self.dir_path)
 
 
-def replace_dir(dir_path, force=False):
+def replace_dir(dir_path, strict=True):
     '''
     :param dir_path: The path to a directory
-    :param force: If force=True, ignore existence of the directory. Otherwise raise exception.
+    :param strict: If strict=False, an empty directory to dir_path is created when the directory of dir_path does not exist.
+        Otherwise raise exception.
 
     Example:
 
@@ -379,13 +384,142 @@ def replace_dir(dir_path, force=False):
     ['some-file-2']
     >>> shutil.rmtree(dir_path)  # remove the directory
     '''
-    return _ReplaceDirectory(dir_path, force=force)
+    return _ReplaceDirectory(dir_path, strict=strict)
 
 
-def copy_dir(source, target, replacing=False, overwriting=False):
-    if replacing:
-        shutil.rmtree(target)
-    return shutil.copytree(source, target, dirs_exist_ok=overwriting)
+class _PrepareDirectory:
+    def __init__(self, dir_path):
+        self.dir_path = dir_path
+
+    def __enter__(self):
+        assert not os.path.exists(self.dir_path)
+
+        parent_dir_path = get_parent_path(self.dir_path)
+        mkloc_unless_exist(parent_dir_path)
+        self.temp_dir_path = tempfile.mkdtemp(dir=parent_dir_path)
+
+        return self.temp_dir_path
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if (exc_type, exc_value, exc_tb) != (None, None, None):
+            return False
+
+        os.rename(self.temp_dir_path, self.dir_path)
+
+
+def prepare_dir(dir_path):
+    '''
+    :param dir_path: The path to a directory
+
+    Example:
+
+    >>> dir_path = 'some-dir'
+    >>> with prepare_dir(dir_path) as temp_dir_path:
+    ...     with open(os.path.join(temp_dir_path, 'some-file-2'), 'w') as f:
+    ...         pass
+    ...
+    >>> os.listdir(dir_path)
+    ['some-file-2']
+    >>> shutil.rmtree(dir_path)  # remove the directory
+    '''
+    return _PrepareDirectory(dir_path)
+
+
+
+def copy_dir(src, dst, replacing=False, overwriting=False, deep=True):
+    if replacing and os.path.isdir(dst):
+        shutil.rmtree(dst)
+
+    return shutil.copytree(src, dst, dirs_exist_ok=overwriting, symlinks=not deep)
+
+
+class _UpdateSymbolicLink:
+    def __init__(self, src, dst, removing_old=False, strict=True):
+        self.src = src
+        self.dst = dst
+        self.removing_old = removing_old
+        self.strict = strict
+
+    def __enter__(self):
+        if not os.path.islink(self.dst):
+            assert not os.path.isdir(self.dst)
+            assert not os.path.isfile(self.dst)
+
+            if self.strict:
+                raise Exception(f'"{self.dst}" does not exist')
+            else:
+                mkpdirs_unless_exist(self.dst)
+
+        parent_dir_path = get_parent_path(self.dst)
+        self.temp_symlink_path = tempfile.mktemp(dir=parent_dir_path)
+        make_symlink(self.src, self.temp_symlink_path)
+        if self.strict or os.path.exists(os.path.realpath(self.dst)):
+            dir_octal_mode = get_octal_mode(self.dst)
+            set_octal_mode(self.temp_symlink_path, dir_octal_mode)
+        return self.temp_symlink_path
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if (exc_type, exc_value, exc_tb) != (None, None, None):
+            return False
+
+        if self.removing_old:
+            dst_real_path = os.path.realpath(self.dst)
+            if os.path.exists(dst_real_path):
+                remove_any(dst_real_path)
+        if self.strict or os.path.islink(self.dst):
+            os.unlink(self.dst)
+        os.rename(self.temp_symlink_path, self.dst)
+
+
+def update_symlink(src, dst, removing_old=False, strict=True):
+    """
+
+    :param src: the path of source
+    :param dst: the path of symbolic link
+    :param removing_old:
+    :param strict: if strict == True, `dst` should be an already existing symbolic link
+
+    Example:
+
+    >>> dir_path_1 = 'some-dir-1'
+    >>> os.makedirs(dir_path_1)
+    >>> with open(os.path.join(dir_path_1, 'some-file-1'), 'w') as f:
+    ...     pass
+    ...
+    >>> symlink_path = 'some-symlink'
+    >>> make_symlink(dir_path_1, symlink_path)
+    >>> os.listdir(symlink_path)
+    ['some-file-1']
+    >>> dir_path_2 = 'some-dir-2'
+    >>> os.makedirs(dir_path_2)
+    >>> with open(os.path.join(dir_path_2, 'some-file-2'), 'w') as f:
+    ...     pass
+    ...
+    >>> with update_symlink(dir_path_2, symlink_path) as temp_symlink_path:
+    ...     with open(os.path.join(temp_symlink_path, 'some-file-3'), 'w') as f:
+    ...         pass
+    ...
+    >>> os.listdir(dir_path_2)
+    ['some-file-2', 'some-file-3']
+    >>> shutil.rmtree(dir_path_1)  # remove the directory
+    >>> shutil.rmtree(dir_path_2)
+    >>> os.unlink(symlink_path)
+
+    """
+
+    return _UpdateSymbolicLink(
+        src=src,
+        dst=dst,
+        removing_old=removing_old,
+        strict=strict
+    )
+
+
+def remove_any(path):
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    else:
+        os.path.remove(path)
 
 
 def get_numbers_in_path(prefix=None, suffix=None, num_type=int):
@@ -472,3 +606,95 @@ def asserts_exist(path):
 
 def asserts_not_exist(path):
     return asserts_conditional_exist(path, False)
+
+
+def make_symlink(src, dst):
+    """
+    Make a symlink with the relative path to a destination.
+
+    :param src: The path to the src file
+    :param dst: The path to the symbolic link that indicates the src file
+    """
+
+    relative_path_to_src_from_dst = os.path.relpath(src, os.path.dirname(dst))
+    os.symlink(relative_path_to_src_from_dst, dst)
+
+
+def change_symlink(src, dst, removing_old=False, strict=True):
+    if os.path.islink(dst):
+        if removing_old:
+            dst_real_path = os.path.realpath(dst)
+            if os.path.exists(dst_real_path):
+                remove_any(dst_real_path)
+        os.unlink(dst)
+    elif strict:
+        raise Exception('{dst} is not a symbolic link')
+
+    make_symlink(src, dst)
+
+
+def copy_symlink(src, dst, replacing=False, removing_old=False):
+    """
+    Copy the symbolic link of the path of `src` to the path of `dst`
+    """
+
+    assert os.path.islink(src)
+
+    if removing_old and os.path.islink(dst):
+        old_dst_realpath = os.path.realpath(dst)
+    else:
+        old_dst_realpath = None
+
+    if replacing and os.path.islink(dst):
+        os.unlink(dst)
+
+    # Copying a symbolic link
+    # https://stackoverflow.com/a/4847660
+    linkto = os.path.join(os.path.dirname(src), os.readlink(src))
+    make_symlink(linkto, dst)
+
+    if old_dst_realpath is not None:
+        remove_any(old_dst_realpath)
+
+
+def is_same_realpath(path1, path2):
+    return os.path.realpath(path1) == os.path.realpath(path2)
+
+
+def get_num_matched_symlinks(glob_pattern, path, except_self=False):
+    '''
+    Compute the number of real paths that indicate the same real path of `path` in the glob pattern.
+
+    Example:
+
+    >>> get_num_matched_symlinks('some/path/to/*', 'some/path/to/source')  # doctest: +SKIP
+    '''
+    src_real_path = os.path.realpath(path)
+    if except_self:
+        src_abs_path = os.path.abspath(path)
+
+    num_matched = 0
+
+    dsts = glob.glob(glob_pattern)
+    for dst in dsts:
+        if os.path.islink(dst):
+            if except_self and src_abs_path == os.path.abspath(dst):
+                continue
+
+            dst_real_path = os.path.realpath(dst)
+            if src_real_path == dst_real_path:
+                num_matched += 1
+
+    return num_matched
+
+
+def any_matched_symlink(glob_pattern, path, except_self=False):
+    """
+    Return True if a symbolic link for `glob_pattern` indicates the same location as `path` does.
+    """
+
+    return get_num_matched_symlinks(
+        glob_pattern,
+        path,
+        except_self=except_self
+    ) > 0  # when more than two symbolic links indicate the same location
