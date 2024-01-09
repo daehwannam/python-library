@@ -1,10 +1,17 @@
 
-from abc import ABCMeta, abstractmethod
+# from abc import ABCMeta, abstractmethod
+import os
+import shutil
+import glob
+import itertools
 
 from ..iteration import distinct_pairs, not_none_valued_pairs
 from ..decoration import construct
 from ..function import compose
-from ..klass import abstractfunction
+# from ..klass import abstractfunction
+
+from dhnamlib.pylib import filesys
+from dhnamlib.pylib.time import get_YmdHMSf
 
 
 def get_measure(name, higher_better: bool):
@@ -79,3 +86,37 @@ def update_status(status, performance, update_num=None):
             best_performance=performance)
 
     return updating_best
+
+
+class CheckpointManager(filesys.SymLinkManager):
+    def __init__(
+            self,
+            checkpoint_loc_path,
+            symlink_glob_patterns,
+    ):
+        checkpoint_glob_pattern = os.path.join(checkpoint_loc_path, '*')
+        super().__init__(src_glob_patterns=[checkpoint_glob_pattern],
+                         symlink_glob_patterns=symlink_glob_patterns)
+        self.checkpoint_loc_path = checkpoint_loc_path
+
+    def get_new_checkpoint_path(self):
+        while True:
+            time_str = get_YmdHMSf()
+            checkpoint_path = os.path.join(self.checkpoint_loc_path, time_str)
+            if not os.path.exists(checkpoint_path):
+                break
+
+        return checkpoint_path
+
+#     def replace_dir(self, dir_path):
+#         return _ReplaceDirectoryAndCleanCheckpoints(self, dir_path)
+
+
+# class _ReplaceDirectoryAndCleanCheckpoints(filesys._ReplaceDirectory):
+#     def __init__(self, cpm: CheckpointManager, dir_path):
+#         super().__init__(dir_path=dir_path, strict=False)
+#         self.cpm = cpm
+
+#     def __exit__(self, except_type, except_value, except_traceback):
+#         super().__exit__(except_type, except_value, except_traceback)
+#         self.cpm.remove_obsolete()

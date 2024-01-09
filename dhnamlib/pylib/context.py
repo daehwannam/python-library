@@ -196,7 +196,7 @@ class _EnvironmentBlock:
     def __enter__(self):
         self._stack.append(self._dict)
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, except_type, except_value, except_traceback):
         self._stack.pop()
 
 
@@ -275,7 +275,7 @@ class _Block:
     def __enter__(self):
         pass
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, except_type, except_value, except_traceback):
         pass
 
 
@@ -302,7 +302,7 @@ class contextless:
     def __enter__(self):
         pass
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, except_type, except_value, except_traceback):
         pass
 
 
@@ -330,11 +330,11 @@ class skippable:
     def __enter__(self):
         return _SKIPPABLE_OBJ
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, except_type, except_value, except_traceback):
         if self.forcing_to_skip:
-            assert exc_type is _SkippableError, "When forcing_to_skip == False, skip_if_possible should be called"
+            assert except_type is _SkippableError, "When forcing_to_skip == False, skip_if_possible should be called"
 
-        if exc_type is _SkippableError:
+        if except_type is _SkippableError:
             return True
         else:
             return False

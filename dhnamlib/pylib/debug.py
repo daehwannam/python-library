@@ -118,7 +118,7 @@ def memory_limist_test():
 
 
 def get_exception_string():
-    exc_type, exc_obj, tb = sys.exc_info()
+    except_type, exc_obj, tb = sys.exc_info()
     f = tb.tb_frame
     lineno = tb.tb_lineno
     filename = f.f_code.co_filename

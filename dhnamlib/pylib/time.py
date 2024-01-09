@@ -69,7 +69,7 @@ class TimeMeasure:
         self.check()
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, except_type, except_value, except_traceback):
         self._interval = self.elapse()
 
     @property

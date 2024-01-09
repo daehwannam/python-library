@@ -11,6 +11,7 @@ import tempfile
 import shutil
 import glob
 import re
+import itertools
 
 
 try:
@@ -353,8 +354,8 @@ class _ReplaceDirectory:
         set_octal_mode(self.temp_dir_path, dir_octal_mode)
         return self.temp_dir_path
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        if (exc_type, exc_value, exc_tb) != (None, None, None):
+    def __exit__(self, except_type, except_value, except_traceback):
+        if (except_type, except_value, except_traceback) != (None, None, None):
             return False
 
         shutil.rmtree(self.dir_path)
@@ -400,8 +401,8 @@ class _PrepareDirectory:
 
         return self.temp_dir_path
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        if (exc_type, exc_value, exc_tb) != (None, None, None):
+    def __exit__(self, except_type, except_value, except_traceback):
+        if (except_type, except_value, except_traceback) != (None, None, None):
             return False
 
         os.rename(self.temp_dir_path, self.dir_path)
@@ -458,14 +459,14 @@ class _UpdateSymbolicLink:
             set_octal_mode(self.temp_symlink_path, dir_octal_mode)
         return self.temp_symlink_path
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        if (exc_type, exc_value, exc_tb) != (None, None, None):
+    def __exit__(self, except_type, except_value, except_traceback):
+        if (except_type, except_value, except_traceback) != (None, None, None):
             return False
 
         if self.removing_old:
             dst_real_path = os.path.realpath(self.dst)
             if os.path.exists(dst_real_path):
-                remove_any(dst_real_path)
+                remove_abspath(dst_real_path)
         if self.strict or os.path.islink(self.dst):
             os.unlink(self.dst)
         os.rename(self.temp_symlink_path, self.dst)
@@ -515,11 +516,13 @@ def update_symlink(src, dst, removing_old=False, strict=True):
     )
 
 
-def remove_any(path):
-    if os.path.isdir(path):
-        shutil.rmtree(path)
+def remove_abspath(abspath):
+    if os.path.islink(abspath):
+        os.remove(abspath)
+    if os.path.isdir(abspath):
+        shutil.rmtree(abspath)
     else:
-        os.path.remove(path)
+        os.remove(abspath)
 
 
 def get_numbers_in_path(prefix=None, suffix=None, num_type=int):
@@ -625,7 +628,7 @@ def change_symlink(src, dst, removing_old=False, strict=True):
         if removing_old:
             dst_real_path = os.path.realpath(dst)
             if os.path.exists(dst_real_path):
-                remove_any(dst_real_path)
+                remove_abspath(dst_real_path)
         os.unlink(dst)
     elif strict:
         raise Exception('{dst} is not a symbolic link')
@@ -654,11 +657,25 @@ def copy_symlink(src, dst, replacing=False, removing_old=False):
     make_symlink(linkto, dst)
 
     if old_dst_realpath is not None:
-        remove_any(old_dst_realpath)
+        remove_abspath(old_dst_realpath)
 
 
 def is_same_realpath(path1, path2):
     return os.path.realpath(path1) == os.path.realpath(path2)
+
+
+def is_suppath(path1, path2):
+    """
+    Check if `path1` is a sub-path of `path2`
+
+    Example:
+
+    >>> is_suppath('/tmp/a', '/tmp/a/b/c')
+    True
+    >>> is_suppath('/tmp/a/d', '/tmp/a/b/c')
+    False
+    """
+    return os.path.abspath(path2).startswith(os.path.abspath(path1) + os.sep)
 
 
 def get_num_matched_symlinks(glob_pattern, path, except_self=False):
@@ -675,13 +692,13 @@ def get_num_matched_symlinks(glob_pattern, path, except_self=False):
 
     num_matched = 0
 
-    dsts = glob.glob(glob_pattern)
-    for dst in dsts:
-        if os.path.islink(dst):
-            if except_self and src_abs_path == os.path.abspath(dst):
+    symlink_path_candidates = glob.glob(glob_pattern)
+    for symlink_path_candidate in symlink_path_candidates:
+        if os.path.islink(symlink_path_candidate):
+            if except_self and src_abs_path == os.path.abspath(symlink_path_candidate):
                 continue
 
-            dst_real_path = os.path.realpath(dst)
+            dst_real_path = os.path.realpath(symlink_path_candidate)
             if src_real_path == dst_real_path:
                 num_matched += 1
 
@@ -698,3 +715,54 @@ def any_matched_symlink(glob_pattern, path, except_self=False):
         path,
         except_self=except_self
     ) > 0  # when more than two symbolic links indicate the same location
+
+
+def remove_obsolete_symlinks(src_glob_patterns, symlink_glob_patterns):
+    checkpoint_paths = set(glob_patterns_to_paths(src_glob_patterns))
+    symlink_paths = set(filter(os.path.islink, glob_patterns_to_paths(symlink_glob_patterns)))
+
+    checkpoint_realpaths = set(map(os.path.realpath, checkpoint_paths))
+    symlink_realpaths = set(map(os.path.realpath, symlink_paths))
+
+    obsolete_checkpoint_realpaths = checkpoint_realpaths.difference(symlink_realpaths)
+
+    for obsolete_checkpoint_realpath in obsolete_checkpoint_realpaths:
+        remove_abspath(obsolete_checkpoint_realpath)
+
+
+def glob_patterns_to_paths(glob_patterns):
+    return (path for path in itertools.chain(*map(glob.glob, glob_patterns)))
+
+
+class SymLinkManager:
+    def __init__(
+            self,
+            src_glob_patterns,
+            symlink_glob_patterns,
+    ):
+        self.src_glob_patterns = self._to_list(src_glob_patterns)
+        self.symlink_glob_patterns = self._to_list(symlink_glob_patterns)
+
+    @staticmethod
+    def _to_list(str_or_list):
+        return ([str_or_list] if isinstance(str_or_list, str) else str_or_list)
+
+    def clean(self):
+        remove_obsolete_symlinks(self.src_glob_patterns, self.symlink_glob_patterns)
+
+    def cleaning(self, context_manager):
+        return _CleanSymLinks(self, context_manager)
+
+
+class _CleanSymLinks:
+    def __init__(self, slm: SymLinkManager, context_manager):
+        self.slm = slm
+        self.context_manager = context_manager
+
+    def __enter__(self):
+        return self.context_manager.__enter__()
+
+    def __exit__(self, except_type, except_value, except_traceback):
+        return_value = self.context_manager.__exit__(except_type, except_value, except_traceback)
+        self.slm.clean()
+        return return_value
