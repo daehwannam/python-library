@@ -221,11 +221,16 @@ class NoAccelerator:
         return model
 
 
+def broadcast_object(obj, from_process=0):
+    [received] = broadcast_object_list([obj], from_process=from_process)
+    return received
+
+
 def get_time_seed():
     '''
     Compute a seed by using time for accelerate.utils.set_seed
     '''
-    [seed] = broadcast_object_list([_get_time_seed_without_sync(exponent=6)], from_process=0)
+    seed = broadcast_object(_get_time_seed_without_sync(exponent=6))
     return seed
 
 

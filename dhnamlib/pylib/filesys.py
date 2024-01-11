@@ -12,6 +12,7 @@ import shutil
 import glob
 import re
 import itertools
+import fractions
 
 
 try:
@@ -136,14 +137,18 @@ class ExtendedJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, set):
             return {'__py__set': list(obj)}
+        elif isinstance(obj, fractions.Fraction):
+            return {'__py__Fraction': [obj.numerator, obj.denominator]}
         else:
             return super().default(obj)
 
 
 def as_python_object_from_json(dic):
     # https://stackoverflow.com/a/8230373
-    if '__py__set' in dic and len(dic) == 1:
+    if '__py__set' in dic:
         return set(dic['__py__set'])
+    elif '__py__Fraction' in dic:
+        return fractions.Fraction(*dic['__py__Fraction'])
     else:
         return dic
 
@@ -424,7 +429,6 @@ def prepare_dir(dir_path):
     >>> shutil.rmtree(dir_path)  # remove the directory
     '''
     return _PrepareDirectory(dir_path)
-
 
 
 def copy_dir(src, dst, replacing=False, overwriting=False, deep=True):

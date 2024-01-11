@@ -138,7 +138,7 @@ class FIFOSet:
 
 class FIFODict:
     '''
-    Kepp most recently updated key-value pairs
+    Keep most recently updated key-value pairs
 
     Example:
 
