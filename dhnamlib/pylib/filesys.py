@@ -601,11 +601,11 @@ def copy_matched(glob_pattern, destination):
 
 def asserts_conditional_exist(path, existing, error_msg_unless_existing=None, error_msg_when_existing=None):
     if existing:
-        if error_msg_unless_existing is not None:
+        if error_msg_unless_existing is None:
             error_msg_unless_existing = f'The following path does not exist: {path}'
         assert os.path.exists(path), error_msg_unless_existing
     else:
-        if error_msg_when_existing is not None:
+        if error_msg_when_existing is None:
             error_msg_when_existing = f'The following path already exists: {path}'
         assert not os.path.exists(path), error_msg_when_existing
     return path

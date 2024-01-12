@@ -230,7 +230,7 @@ def get_time_seed():
     '''
     Compute a seed by using time for accelerate.utils.set_seed
     '''
-    seed = broadcast_object(_get_time_seed_without_sync(exponent=6))
+    seed = broadcast_object(_get_time_seed_without_sync(max_num_digits=6))
     return seed
 
 
