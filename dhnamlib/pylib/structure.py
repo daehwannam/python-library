@@ -125,7 +125,7 @@ class LazyDict(dict):
         return eval_lazy_obj(super().__getitem__(key))
 
     def get(self, key, default):
-        return eval_lazy_obj(self.super().get(key, default))
+        return eval_lazy_obj(super().get(key, default))
 
     def __items__(self, lazy=True):
         eval_obj_unless_lazy = get_eval_obj_unless_lazy(lazy)

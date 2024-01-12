@@ -599,11 +599,15 @@ def copy_matched(glob_pattern, destination):
         shutil.copy(path, destination)
 
 
-def asserts_conditional_exist(path, existing):
+def asserts_conditional_exist(path, existing, error_msg_unless_existing=None, error_msg_when_existing=None):
     if existing:
-        assert os.path.exists(path), f'The following path does not exist: {path}'
+        if error_msg_unless_existing is not None:
+            error_msg_unless_existing = f'The following path does not exist: {path}'
+        assert os.path.exists(path), error_msg_unless_existing
     else:
-        assert not os.path.exists(path), f'The following path already exists: {path}'
+        if error_msg_when_existing is not None:
+            error_msg_when_existing = f'The following path already exists: {path}'
+        assert not os.path.exists(path), error_msg_when_existing
     return path
 
 
