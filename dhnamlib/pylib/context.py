@@ -1,7 +1,9 @@
 
 import inspect
 import functools
-# from contextlib import contextmanager  # https://realpython.com/python-with-statement/#creating-function-based-context-managers
+import contextlib
+from contextlib import contextmanager  # https://realpython.com/python-with-statement/#creating-function-based-context-managers
+import os
 
 from .lazy import LazyEval, eval_lazy_obj, get_eval_obj_unless_lazy
 from .decoration import deprecated
@@ -356,3 +358,19 @@ class must_skipped(skippable):
     def __init__(self, *args, **kwargs):
         assert 'forcing_to_skip' not in kwargs
         super().__init__(*args, **kwargs, forcing_to_skip=True)
+
+
+@contextmanager
+def suppress_stdout():
+    # https://stackoverflow.com/a/46129367
+    with open(os.devnull, "w") as f:
+        with contextlib.redirect_stdout(f):
+            yield
+
+
+@contextmanager
+def suppress_stderr():
+    # https://stackoverflow.com/a/46129367
+    with open(os.devnull, "w") as f:
+        with contextlib.redirect_stderr(f):
+            yield
