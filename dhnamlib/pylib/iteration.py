@@ -416,30 +416,38 @@ class iterate:
     ...
     >>> total
     10
+
+    >>> iterator  = iterate(range(5))
+    >>> print([next(iterator), next(iterator), next(iterator)])
+    [0, 1, 2]
+    >>> iterator.restore(10)
+    >>> print([next(iterator), next(iterator), next(iterator)])
+    [10, 3, 4]
     '''
-    EMPTY = object()
 
     def __init__(self, coll):
         self.iterator = iter(coll)
-        self.reserved = self.EMPTY
+        self._restored_items = []
 
     def __next__(self):
-        if self.reserved is self.EMPTY:
-            return next(self.iterator)
+        if len(self._restored_items) > 0:
+            return self._restored_items.pop()
         else:
-            reserved = self.reserved
-            self.reserved = self.EMPTY
-            return reserved
+            return next(self.iterator)
 
     def __bool__(self):
-        if self.reserved is self.EMPTY:
+        if self._restored_items:
+            return True
+        else:
             try:
-                self.reserved = next(self.iterator)
+                item = next(self.iterator)
+                self._restored_items.append(item)
                 return True
             except StopIteration:
                 return False
-        else:
-            return True
+
+    def restore(self, item):
+        self._restored_items.append(item)
 
 
 def exrange(*args):

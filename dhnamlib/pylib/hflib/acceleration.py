@@ -15,8 +15,6 @@ from accelerate.utils.operations import gather_object
 from ..iteration import split_by_lengths, partition, iterate
 from ..time import get_time_seed as _get_time_seed_without_sync
 
-# from ..torchlib.dnn import EpochRepeatingDataLoader
-
 
 class Acceleratable(metaclass=ABCMeta):
     @abstractmethod
@@ -52,7 +50,7 @@ def xprepare(accelerator: Accelerator, objs, device_placement=None):
     """
     Extension of Accelerator.prepare.
 
-    >>> from dhnamlib.pylib.torchlib.dnn import EpochRepeatingDataLoader, SimpleDataset
+    >>> from dhnamlib.pylib.torchlib.data_processing import EpochRepeatingDataLoader, SimpleDataset
 
     >>> examples = ['example-A', 'example-B', 'example-C', 'example-D']
     >>> batch_size = 2
