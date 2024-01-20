@@ -5,7 +5,7 @@ import torch
 from torch.utils.data.sampler import Sampler
 
 from ..klass import Interface
-from ...iteration import iterate
+from ..iteration import iterate
 from ..hflib.acceleration import Acceleratable
 
 
@@ -91,17 +91,16 @@ class VariableSizedBatchSampler(Sampler[List[int]]):
     >>> sampler = VariableSizedBatchSampler(data_source, lambda x: x, 100)
     >>> index_batches = tuple(sampler)
     >>> index_batches
-    ([0, 1, 2], [3], [4, 5], [6, 7], [8], [9])
+    ((0, 1, 2), (3,), (4, 5), (6, 7), (8,), (9,))
     >>> batches = tuple(list(data_source[idx] for idx in index_batch) for index_batch in sampler)
     >>> batches
     ([10, 30, 50], [70], [90, 0], [20, 40], [60], [80])
     """
 
-    def __init__(self, data_source: Sized, size_fn, max_size, drop_last: bool = False) -> None:
+    def __init__(self, data_source: Sized, size_fn, max_size) -> None:
         self.data_source = data_source
         self.size_fn = size_fn
         self.max_size = max_size
-        self.drop_last = drop_last
         self._index_batches = []
         self._pre_computed = False
 
@@ -124,26 +123,52 @@ class VariableSizedBatchSampler(Sampler[List[int]]):
                 pass
 
     def _get_iter(self):
-        iterator = iterate(enumerate(self.data_source))
-
-        batch_size, batch = 0, []
-
-        while iterator:
-            idx, example = next(iterator)
-            example_size = self.size_fn(example)
-            assert example_size < self.max_size, 'The size of an example exceeds the limit'
-
-            if example_size + batch_size <= self.max_size:
-                batch_size += example_size
-                batch.append(idx)
-            else:
-                iterator.restore((idx, example))
-                yield self._add_batch(batch)
-                batch_size, batch = 0, []
-
-        if not self.drop_last:
-            assert batch_size < self.max_size
-            yield self._add_batch(batch)
-            batch_size, batch = 0, []
+        for batch_slice in generate_variable_sized_slices(
+                data_source=self.data_source,
+                size_fn=self.size_fn,
+                max_size=self.max_size,
+        ):
+            yield self._add_batch(tuple(range(batch_slice.start, batch_slice.stop)))
 
         self._pre_computed = True
+
+
+def generate_variable_sized_slices(data_source, size_fn, max_size):
+    r"""
+    Generate slices where the size of items in a slice is smallar than `max_size`.
+
+    Example:
+    >>> data_source = [10, 30, 50, 70, 90, 0, 20, 40, 60, 80]
+    >>> slices = tuple(generate_variable_sized_slices(data_source, lambda x: x, 100))
+    >>> slices
+    (slice(0, 3, None), slice(3, 4, None), slice(4, 6, None), slice(6, 8, None), slice(8, 9, None), slice(9, 10, None))
+    >>> groups = tuple(data_source[slice] for slice in slices)
+    >>> groups
+    ([10, 30, 50], [70], [90, 0], [20, 40], [60], [80])
+    """
+
+    iterator = iterate(enumerate(map(size_fn, data_source)))
+
+    last_index = 0
+    group_size = 0
+
+    if not iterator:
+        # when data_source is empty
+        yield from ()
+    else:
+        while iterator:
+            index, size = next(iterator)
+            assert size < max_size, 'The size of an item exceeds the limit'
+
+            if group_size + size <= max_size:
+                group_size += size
+            else:
+                iterator.restore((index, size))
+                yield slice(last_index, index)
+                last_index = index
+                group_size = 0
+
+        assert group_size <= max_size
+        yield slice(last_index, index + 1)
+        last_index = index + 1
+        group_size = 0

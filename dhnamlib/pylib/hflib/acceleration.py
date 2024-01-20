@@ -3,6 +3,7 @@ import types
 import itertools
 from abc import ABCMeta, abstractmethod
 import functools
+import contextlib
 
 import torch
 from accelerate import Accelerator
@@ -159,6 +160,15 @@ class XAccelerator(Accelerator):
     @property
     def accelerating(self):
         return self.distributed_type != DistributedType.NO
+
+    @contextlib.contextmanager
+    def accumulate_if(self, models, accumulating):
+        # It's a modified code from `Accelerate.accumulate`
+
+        with contextlib.ExitStack() as cm_stack:
+            for m in models:
+                cm_stack.enter_context(contextlib.nullcontext() if not accumulating else self.no_sync(m))
+            yield
 
 
 class NoAccelerator:
