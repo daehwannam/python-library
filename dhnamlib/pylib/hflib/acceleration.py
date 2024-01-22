@@ -162,13 +162,16 @@ class XAccelerator(Accelerator):
         return self.distributed_type != DistributedType.NO
 
     @contextlib.contextmanager
-    def accumulate_if(self, models, accumulating):
+    def accumulate_if(self, *models, accumulating):
         # It's a modified code from `Accelerate.accumulate`
 
         with contextlib.ExitStack() as cm_stack:
             for m in models:
                 cm_stack.enter_context(contextlib.nullcontext() if not accumulating else self.no_sync(m))
             yield
+
+    def accumulate_always(self, *models):
+        return self.accumulate_if(*models, accumulating=True)
 
 
 class NoAccelerator:

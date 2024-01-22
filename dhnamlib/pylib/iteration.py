@@ -423,6 +423,12 @@ class iterate:
     >>> iterator.restore(10)
     >>> print([next(iterator), next(iterator), next(iterator)])
     [10, 3, 4]
+
+    >>> iterator  = iterate(range(5))
+    >>> for x in iterator:
+    ...     if not iterator:
+    ...         print('The last value: ', x)
+    The last value:  4
     '''
 
     def __init__(self, coll):
@@ -445,6 +451,10 @@ class iterate:
                 return True
             except StopIteration:
                 return False
+
+    def __iter__(self):
+        while self:
+            yield next(self)
 
     def restore(self, item):
         self._restored_items.append(item)

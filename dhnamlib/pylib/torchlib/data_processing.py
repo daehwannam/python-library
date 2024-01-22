@@ -158,7 +158,7 @@ def generate_variable_sized_slices(data_source, size_fn, max_size):
     else:
         while iterator:
             index, size = next(iterator)
-            assert size < max_size, 'The size of an item exceeds the limit'
+            assert size <= max_size, 'The size of an item exceeds the limit'
 
             if group_size + size <= max_size:
                 group_size += size
