@@ -374,3 +374,19 @@ def suppress_stderr():
     with open(os.devnull, "w") as f:
         with contextlib.redirect_stderr(f):
             yield
+
+
+@contextmanager
+def context_nest(*context_managers):
+    """
+    Example:
+
+    Nest context managers
+
+    >>> with context_nest(suppress_stdout(), suppress_stderr()) as (context_manager_1, context_manager_2):
+    ...     print("This is not printed")
+    """
+    with contextlib.ExitStack() as exit_stack:
+        for context_manager in context_managers:
+            exit_stack.enter_context(context_manager)
+        yield context_managers
