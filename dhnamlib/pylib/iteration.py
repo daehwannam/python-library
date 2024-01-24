@@ -646,22 +646,49 @@ def replace_with_last(items, idx):
     return item
 
 
+def indices_to_slices(indices, including_end_index=False, seq_length=None):
+    '''
+    Example:
+
+    >>> tuple(indices_to_slices([5, 15], including_end_index=False))
+    (slice(0, 5, None), slice(5, 15, None), slice(15, None, None))
+    '''
+    last_idx = 0
+    for idx in indices:
+        yield slice(last_idx, idx)
+        last_idx = idx
+
+    if including_end_index:
+        if seq_length is not None:
+            assert idx == seq_length
+    else:
+        yield slice(last_idx, None)
+
+
 def split_by_indices(seq, indices, including_end_index=False):
     '''
     Example:
 
-    >>> tuple(split_by_indices(tuple(range(20)), [5, 15]))
+    >>> tuple(split_by_indices(tuple(range(20)), [5, 15], including_end_index=False))
     ((0, 1, 2, 3, 4), (5, 6, 7, 8, 9, 10, 11, 12, 13, 14), (15, 16, 17, 18, 19))
     '''
-    last_idx = 0
-    for idx in indices:
-        yield seq[last_idx: idx]
-        last_idx = idx
+    return map(seq.__getitem__, indices_to_slices(indices, including_end_index=including_end_index, seq_length=len(seq)))
 
-    if including_end_index:
-        assert last_idx == len(seq)
-    else:
-        yield seq[last_idx:]
+
+def lengths_to_slices(lengths):
+    '''
+    Example:
+
+    >>> tuple(lengths_to_slices([5, 10, 5]))
+    (slice(0, 5, None), slice(5, 15, None), slice(15, 20, None))
+    '''
+    indices = []
+    accumulated_length = 0
+    for length in lengths:
+        accumulated_length += length
+        indices.append(accumulated_length)
+
+    return indices_to_slices(indices, including_end_index=True, seq_length=accumulated_length)
 
 
 def split_by_lengths(seq, lengths):
@@ -672,13 +699,7 @@ def split_by_lengths(seq, lengths):
     ((0, 1, 2, 3, 4), (5, 6, 7, 8, 9, 10, 11, 12, 13, 14), (15, 16, 17, 18, 19))
     '''
 
-    indices = []
-    accumulated_length = 0
-    for length in lengths:
-        accumulated_length += length
-        indices.append(accumulated_length)
-
-    return split_by_indices(seq, indices, including_end_index=True)
+    return map(seq.__getitem__, lengths_to_slices(lengths))
 
 
 def partition(seq, n, fill_value=NO_VALUE, strict=True):
@@ -867,3 +888,65 @@ if importlib.util.find_spec('tqdm') is not None:
             desc_fn=lambda: ('{}: ' + repr_format).format(unit, update_fn())))
 
         return xtqdm(*args, **desc_kwargs, **kwargs)
+
+
+def slice_by_max_size(items, size_fn, max_size):
+    r"""
+    Generate slices where the size of items in a slice is smallar than `max_size`.
+
+    Example:
+    >>> items = [10, 30, 50, 70, 90, 0, 20, 40, 60, 80]
+    >>> slices = tuple(slice_by_max_size(items, lambda x: x, 100))
+    >>> slices
+    (slice(0, 3, None), slice(3, 4, None), slice(4, 6, None), slice(6, 8, None), slice(8, 9, None), slice(9, 10, None))
+    >>> groups = tuple(items[slice] for slice in slices)
+    >>> groups
+    ([10, 30, 50], [70], [90, 0], [20, 40], [60], [80])
+    """
+
+    iterator = iterate(enumerate(map(size_fn, items)))
+
+    last_index = 0
+    group_size = 0
+
+    if not iterator:
+        # when items is empty
+        yield from ()
+    else:
+        while iterator:
+            index, size = next(iterator)
+            assert size <= max_size, 'The size of an item exceeds the limit'
+
+            if group_size + size <= max_size:
+                group_size += size
+            else:
+                iterator.restore((index, size))
+                yield slice(last_index, index)
+                last_index = index
+                group_size = 0
+
+        assert group_size <= max_size
+        yield slice(last_index, index + 1)
+        last_index = index + 1
+        group_size = 0
+
+
+def split_by_max_size(items, size_fn, max_size):
+    """
+    Split items where the size of a split is smallar than `max_size`.
+
+    Example:
+    >>> items = [10, 30, 50, 70, 90, 0, 20, 40, 60, 80]
+    >>> splits = tuple(split_by_max_size(items, lambda x: x, 100))
+    >>> splits
+    ([10, 30, 50], [70], [90, 0], [20, 40], [60], [80])
+    """
+
+    _data_source = items if hasattr(items, '__getitem__') else tuple(items)
+    return map(
+        _data_source.__getitem__,
+        slice_by_max_size(
+            items=_data_source,
+            size_fn=size_fn,
+            max_size=max_size
+        ))

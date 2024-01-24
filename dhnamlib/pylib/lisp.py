@@ -2,7 +2,7 @@
 from itertools import chain
 
 from dhnamlib.pylib.iteration import partition
-from dhnamlib.pylib.iteration import split_by_indices
+# from dhnamlib.pylib.iteration import split_by_indices
 
 
 def parse_hy_args(symbols):
