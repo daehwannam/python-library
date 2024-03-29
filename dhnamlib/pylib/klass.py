@@ -3,6 +3,7 @@ import re
 import itertools
 import functools
 from abc import abstractmethod
+from .decoration import deprecated
 
 
 def get_all_subclass_set(cls):
@@ -74,6 +75,34 @@ def isabstractmethod(method):
     return getattr(method, '__isabstractmethod__', False)
 
 
+@deprecated
+def _implement_fn(abstract_fn):
+    def decorate(concrete_fn):
+        assert isabstractfunction(abstract_fn), \
+            "'{}' is not declared as abstract".format(abstract_fn.__name__)
+        assert abstract_fn.__name__ == concrete_fn.__name__, \
+            "The function names are different: {} and {}".format(abstract_fn.__name__, concrete_fn.__name__)
+        concrete_fn.__abstractfunction__ = abstract_fn
+        return concrete_fn
+    return decorate
+
+
+_NO_FUNCTION = object()
+
+
+@deprecated
+def _is_implementing_fn(concrete_fn, abstract_fn):
+    return getattr(concrete_fn, '__abstractfunction__', _NO_FUNCTION) is abstract_fn
+
+
+@deprecated
+def _get_concrete(abstract_fn, module):
+    concrete_fn = getattr(module, abstract_fn.__name__)
+    assert _is_implementing_fn(concrete_fn, abstract_fn), \
+        f'The function {concrete_fn.__name__} is not decorated with `implement_fn`'
+    return concrete_fn
+
+
 class Interface:
     """Collection of decorators for abstract classes
 
@@ -85,10 +114,9 @@ class Interface:
     ...     @abstractmethod
     ...     def func(self):
     ...         pass
-    >>>
+
     >>> class B(A):
     ...     interface = Interface(A)
-    ...     \
     ...     @interface.implement
     ...     def func(self):
     ...         print('This is implemented.')
@@ -144,8 +172,8 @@ class Interface:
             self.__is_abstractfunction_in_parents(method_or_func)
 
     def _implemeted_as_abstract(self, method_or_func):
-        return self.__implemeted_as_abstractmethod(method_or_func) or \
-            self.__implemeted_as_abstractfunction(method_or_func)
+        return self.__implemented_as_abstractmethod(method_or_func) or \
+            self.__implemented_as_abstractfunction(method_or_func)
 
     # method
     def __declared_as_abstractmethod(self, method):
@@ -156,7 +184,7 @@ class Interface:
     def __is_abstractmethod_in_parents(self, method):
         return any(map(lambda cls: (isabstractmethod(getattr(cls, method.__name__))), self.parents))
 
-    def __implemeted_as_abstractmethod(self, method):
+    def __implemented_as_abstractmethod(self, method):
         return self.__declared_as_abstractmethod(method) and \
             not self.__is_abstractmethod_in_parents(method)
 
@@ -169,7 +197,7 @@ class Interface:
     def __is_abstractfunction_in_parents(self, function):
         return any(map(lambda cls: (isabstractfunction(getattr(cls, function.__name__))), self.parents))
 
-    def __implemeted_as_abstractfunction(self, function):
+    def __implemented_as_abstractfunction(self, function):
         return self.__declared_as_abstractfunction(function) and \
             not self.__is_abstractfunction_in_parents(function)
 
@@ -258,3 +286,59 @@ def abstractclassmethod(func):
 
 # alias
 abstractattribute = abstractmethod
+
+
+def subclass(cls):
+    """Collection of decorators for abstract classes
+
+    Example
+
+    >>> from abc import ABCMeta, abstractmethod
+    >>>
+    >>> class A(metaclass=ABCMeta):
+    ...     @abstractmethod
+    ...     def foo(self):
+    ...         pass
+    ...     def bar(self):
+    ...         pass
+    >>>
+    >>> @subclass
+    ... class B(A):
+    ...     @implement
+    ...     def foo(self):
+    ...         print('This is implemented.')
+    ...     @override
+    ...     def bar(self):
+    ...         pass
+
+    """
+
+    interface = Interface(*cls.__bases__)
+
+    for attr, value in vars(cls).items():
+        if hasattr(value, '_implement'):
+            delattr(value, '_implement')
+            setattr(cls, attr, interface.implement(value))
+        elif hasattr(value, '_redeclare'):
+            delattr(value, '_redeclare')
+            setattr(cls, attr, interface.redeclare(value))
+        elif hasattr(value, '_override'):
+            delattr(value, '_override')
+            setattr(cls, attr, interface.override(value))
+
+    return cls
+
+
+def implement(func):
+    func._implement = True
+    return func
+
+
+def redeclare(func):
+    func._redeclare = True
+    return func
+
+
+def override(func):
+    func._override = True
+    return func

@@ -14,6 +14,10 @@ except ModuleNotFoundError:
 
 
 def import_all_basic_macros():
+    """
+    Update the global variable _macro_ to include basic macros.
+    """
+
     globals = inspect.stack()[1][0].f_globals
     exec(all_macro_import_code, globals)
 
@@ -38,6 +42,10 @@ prelude_code = \
 
 
 def prelude():
+    """
+    Import functions and macros globally.
+    """
+
     globals = inspect.stack()[1][0].f_globals
     exec(prelude_code, globals)
 

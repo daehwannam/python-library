@@ -2,12 +2,14 @@
 import re
 import warnings
 from argparse import Namespace
+from enum import Enum, auto as enum_auto
 
 from .iteration import distinct_pairs
 from .exception import DuplicateValueError
 from .lazy import LazyEval, eval_lazy_obj, get_eval_obj_unless_lazy
 from .decoration import id_cache
 from .constant import NO_VALUE
+from .text import camel_to_symbol
 
 
 class AttrDict(dict):
@@ -308,20 +310,6 @@ class TreeStructure:
                 return None
 
 
-first_cap_re = re.compile('(.)([A-Z][a-z]+)')
-all_cap_re = re.compile('([a-z0-9])([A-Z])')
-
-
-def camel_to_symbol(name):
-    s1 = first_cap_re.sub(r'\1-\2', name)
-    return all_cap_re.sub(r'\1-\2', s1).lower()
-
-
-def camel_to_snake(name):
-    s1 = first_cap_re.sub(r'\1-\2', name)
-    return all_cap_re.sub(r'\1-\2', s1).lower()
-
-
 class bidict(dict):
     '''
     Bidirectional dictionary
@@ -465,3 +453,28 @@ def namedlist(typename, field_names):
     NamedList.__name__ = typename
     NamedList.__qualname__ = typename
     return NamedList
+
+
+class NameEnum(Enum):
+    """
+    Source: https://docs.python.org/3.9/library/enum.html#using-automatic-values
+
+    Example:
+
+    >>> class Ordinal(NameEnum):
+    ...     auto = NameEnum.auto
+    ...
+    ...     NORTH = auto()
+    ...     SOUTH = auto()
+    ...     EAST = auto()
+    ...     WEST = auto()
+    ...
+    >>> list(Ordinal)
+    [<Ordinal.NORTH: 'NORTH'>, <Ordinal.SOUTH: 'SOUTH'>, <Ordinal.EAST: 'EAST'>, <Ordinal.WEST: 'WEST'>]
+    """
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
+    @staticmethod
+    def auto():
+        return enum_auto()

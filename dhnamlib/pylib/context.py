@@ -7,7 +7,7 @@ import os
 
 from .lazy import LazyEval, eval_lazy_obj, get_eval_obj_unless_lazy
 from .decoration import deprecated
-from .klass import Interface
+from .klass import subclass, override  # , implement
 
 # Environment
 # modified from https://stackoverflow.com/a/2002140/6710003
@@ -213,15 +213,16 @@ class _PlaceholderFactory:
         return _PlaceholderFactoryWithDefault(self.env, default_value)
 
 
+@subclass
 class _PlaceholderFactoryWithDefault(_PlaceholderFactory):
-    interface = Interface(_PlaceholderFactory)
+    # interface = Interface(_PlaceholderFactory)
 
-    @interface.override
+    @override
     def __init__(self, env: Environment, default_value):
         super().__init__(env)
         self.default_value = default_value
 
-    @interface.override
+    @override
     def __getattr__(self, name):
         return _PlaceholderWithDefaultValue(self.env, name, self.default_value)
 
@@ -238,15 +239,16 @@ class _Placeholder:
         return _PlaceholderWithDefaultValue(self.env, self.name, default_value)
 
 
+@subclass
 class _PlaceholderWithDefaultValue(_Placeholder):
-    interface = Interface(_Placeholder)
+    # interface = Interface(_Placeholder)
 
-    @interface.override
+    @override
     def __init__(self, env, name, default_value):
         super().__init__(env, name)
         self.default_value = default_value
 
-    @interface.override
+    @override
     def get_value(self):
         try:
             return super().get_value()

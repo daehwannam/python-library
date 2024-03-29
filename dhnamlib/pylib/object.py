@@ -49,3 +49,60 @@ def getitem(obj, key, default_value=NO_VALUE):
             raise e
         else:
             return default_value
+
+
+class ObjectCache:
+    '''
+    Example:
+
+    >>> object_cache = ObjectCache()
+    >>> def foo():
+    ...     print('`foo` is called')
+    ...     return 'something'
+
+    >>> object_cache.set_initializer(foo).__name__
+    'foo'
+    >>> print('Before getting the object')
+    Before getting the object
+    >>> object_cache.get_object()
+    `foo` is called
+    'something'
+
+    >>> object_cache = ObjectCache()
+    >>> @object_cache.set_initializer
+    ... def bar():
+    ...     print('`bar` is called')
+    ...     return 'another'
+
+    >>> object_cache.get_object()
+    `bar` is called
+    'another'
+    '''
+
+    def __init__(self):
+        self._obj = NO_VALUE
+        self._initializer = NO_VALUE
+        self._evaluated = False
+
+    def set_object(self, obj):
+        assert self._obj is NO_VALUE
+        assert self._initializer is NO_VALUE
+        self._obj = obj
+        return obj
+
+    def set_initializer(self, obj_fn):
+        assert self._obj is NO_VALUE
+        assert self._initializer is NO_VALUE
+        self._initializer = obj_fn
+        return obj_fn
+
+    def get_object(self):
+        if self._obj is not NO_VALUE:
+            return self._obj
+        elif self._initializer is not NO_VALUE:
+            assert self._evaluated is False
+            self._obj = self._initializer()
+            self._evaluated = True
+            return self._obj
+        else:
+            raise Exception('Either object or object function does not exist')

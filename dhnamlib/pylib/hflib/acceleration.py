@@ -15,6 +15,7 @@ from accelerate.utils.operations import gather_object
 # from ..decoration import to_variables
 from ..iteration import split_by_lengths, partition, iterate
 from ..time import get_time_seed as _get_time_seed_without_sync
+from ..lazy import LazyProxy
 
 
 class Acceleratable(metaclass=ABCMeta):
@@ -124,6 +125,33 @@ def xprepare(accelerator: Accelerator, objs, device_placement=None):
         return output_objs
 
 
+def within_local_main_process(accelerator: Accelerator, local_main_fn, otherwise_fn=None):
+    '''
+    Run a function within the local-main process
+    '''
+
+    def default_otherwise_fn(*args, **kwargs):
+        return None
+
+    if otherwise_fn is None:
+        otherwise_fn = default_otherwise_fn
+
+    @functools.wraps(local_main_fn)
+    def decorated_local_main_fn(*args, **kwargs):
+        if accelerator.is_local_main_process:
+            return local_main_fn(*args, **kwargs)
+        else:
+            return otherwise_fn(*args, **kwargs)
+
+
+class AcceleratorProxy(LazyProxy):
+    def __init__(self, fn, *args, **kwargs):
+        super().__init__(fn, *args, **kwargs)
+
+    def within_local_main_process(self, local_main_fn, otherwise_fn=None):
+        return within_local_main_process(self, local_main_fn, otherwise_fn)
+
+
 class XAccelerator(Accelerator):
     def prepare(self, *args, device_placement=None):
         return xprepare(super(), args, device_placement=device_placement)
@@ -149,13 +177,8 @@ class XAccelerator(Accelerator):
 
         return prepared_data_loader
 
-    def within_local_main_process(self, func):
-        @functools.wraps(func)
-        def decorated_func(*args, **kwargs):
-            if self.is_local_main_process:
-                return func(*args, **kwargs)
-
-        return decorated_func
+    def within_local_main_process(self, local_main_fn, otherwise_fn=None):
+        return within_local_main_process(self, local_main_fn, otherwise_fn)
 
     @property
     def accelerating(self):

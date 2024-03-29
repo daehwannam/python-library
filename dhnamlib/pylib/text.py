@@ -1,4 +1,7 @@
 
+import re
+
+
 def parse_bool(text):
     lower_text = text.lower()
     if lower_text == "true":
@@ -47,3 +50,17 @@ def get_paren_index_pairs(s):
 
 def split_into_vars(s):
     return s.replace(',', ' ').strip().split()
+
+
+first_cap_re = re.compile('(.)([A-Z][a-z]+)')
+all_cap_re = re.compile('([a-z0-9])([A-Z])')
+
+
+def camel_to_symbol(name):
+    s1 = first_cap_re.sub(r'\1-\2', name)
+    return all_cap_re.sub(r'\1-\2', s1).lower()
+
+
+def camel_to_snake(name):
+    s1 = first_cap_re.sub(r'\1-\2', name)
+    return all_cap_re.sub(r'\1-\2', s1).lower()

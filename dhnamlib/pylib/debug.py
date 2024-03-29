@@ -299,3 +299,10 @@ def vars2names(*variables, frame_stack=None):
 
     except ValueError:
         raise Exception('Parsing code failed')
+
+
+def NIE(msg=None):
+    """Not Implementated Error"""
+
+    args = (msg,) if msg is not None else ()
+    raise NotImplementedError(*args)

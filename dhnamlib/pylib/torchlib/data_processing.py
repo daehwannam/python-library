@@ -4,7 +4,7 @@ from typing import Iterator, Iterable, Optional, Sequence, List, TypeVar, Generi
 import torch
 from torch.utils.data.sampler import Sampler
 
-from ..klass import Interface
+from ..klass import subclass, implement
 from ..iteration import iterate, slice_by_max_size
 from ..hflib.acceleration import Acceleratable
 
@@ -20,6 +20,7 @@ class SimpleDataset(torch.utils.data.Dataset):
         return len(self.examples)
 
 
+@subclass
 class EpochRepeatingDataLoader(Acceleratable):
     '''
     Example:
@@ -53,7 +54,7 @@ class EpochRepeatingDataLoader(Acceleratable):
     [['example-A', 'example-B']]
     '''
 
-    interface = Interface(Acceleratable)
+    # interface = Interface(Acceleratable)
 
     def __init__(self, data_loader, num_epoch_repeats):
         self.data_loader = data_loader
@@ -73,11 +74,11 @@ class EpochRepeatingDataLoader(Acceleratable):
                 self.iterator = iterate(self.data_loader)
             yield next(self.iterator)
 
-    @interface.implement
+    @implement
     def decompose(self):
         yield self.data_loader
 
-    @interface.implement
+    @implement
     def compose(self, data_loader):
         return type(self)(data_loader, self.num_epoch_repeats)
 

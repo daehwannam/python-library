@@ -180,6 +180,14 @@ def unnecessary(func):
     return new_func
 
 
+def notimplemented(func):
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        raise NotImplementedError(f'{"func.__name__"} is not implemented')
+
+    return new_func
+
+
 # def load_after_save(file_path_arg_name, *, load_func, save_func):
 #     import os
 
@@ -287,8 +295,7 @@ class Register:
         self.strategy = strategy
         self.memory = dict()
 
-    @staticmethod
-    def _normalize_identifier(identifier):
+    def _normalize_identifier(self, identifier):
         if isinstance(identifier, list):
             identifier = tuple(identifier)
         return identifier
@@ -321,7 +328,7 @@ class Register:
             assert strategy in self.STRATEGIES
 
         if (strategy == 'lazy') or (strategy == 'conditional' and identifier not in self.memory):
-            registered = LazyValue(self, identifier)
+            registered = LazyRegisterValue(self, identifier)
         else:
             assert strategy in ['instant', 'conditional']
             registered = self.memory[identifier]
@@ -332,8 +339,12 @@ class Register:
     def _msg_not_registered(identifier):
         return f'"{identifier}" is not registered.'
 
+    def update(self, pairs, **kwargs):
+        _pairs = pairs.memory.items() if isinstance(pairs, Register) else pairs
+        self.memory.update(_pairs, **kwargs)
 
-class LazyValue:
+
+class LazyRegisterValue:
     def __init__(self, register, identifier):
         self.register = register
         self.identifier = identifier
@@ -531,3 +542,28 @@ def to_variables(func):
         else:
             return return_values
     return decorated
+
+
+_VALUE_PLACEHOLDER = object()
+
+
+def attr2str(obj=NO_VALUE):
+    '''
+    Example:
+
+    >>> @attr2str
+    ... class Fruit:
+    ...     APPLE = attr2str()
+    ...     BANANA = attr2str()
+    ...     ORANGE = attr2str()
+
+    >>> [Fruit.APPLE, Fruit.BANANA, Fruit.ORANGE]
+    ['APPLE', 'BANANA', 'ORANGE']
+    '''
+    if obj is NO_VALUE:
+        return _VALUE_PLACEHOLDER
+    else:
+        for attr, value in vars(obj).items():
+            if value is _VALUE_PLACEHOLDER:
+                setattr(obj, attr, attr)
+        return obj
