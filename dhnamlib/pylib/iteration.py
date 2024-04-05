@@ -950,3 +950,19 @@ def split_by_max_size(items, size_fn, max_size):
             size_fn=size_fn,
             max_size=max_size
         ))
+
+
+def iterfirstk(sequence, k):
+    '''
+    Example:
+
+    >>> items = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']
+    >>> output = []
+    >>> for x in iterfirstk(items, 3):
+    ...     output.append(x)
+    >>> print(output)
+    ['a', 'b', 'c']
+    '''
+    iterator = iter(sequence)
+    for idx in range(k):
+        yield next(iterator)

@@ -1,6 +1,7 @@
 
 import json
 
+from hissp.munger import demunge
 from hissp.compiler import MAYBE
 
 MAIN = '__main__'
@@ -45,3 +46,21 @@ def repr_as_hash_str(expr: str):
     # #"text..." is called as Hash String in Lissp.
 
     return '#' + json.dumps(expr)
+
+
+def demunge_recursively(expr):
+    '''
+    Example:
+
+    >>> from dhnamlib.hissplib.compile import lissp_to_hissp
+    >>> expr = lissp_to_hissp("(outter-symbol-1 (inner-symbol-1 inner-symbol-2) outter-symbol-2)")
+    >>> expr                    # doctest: +SKIP
+    ('outterQz_symbolQz_1', ('innerQz_symbolQz_1', 'innerQz_symbolQz_2'), 'outterQz_symbolQz_2')  # doctest: +SKIP
+    >>> demunge_recursively(expr)
+    ('outter-symbol-1', ('inner-symbol-1', 'inner-symbol-2'), 'outter-symbol-2')
+    '''
+    if isinstance(expr, str):
+        return demunge(expr)
+    else:
+        assert isinstance(expr, (list, tuple))
+        return tuple(map(demunge_recursively, expr))

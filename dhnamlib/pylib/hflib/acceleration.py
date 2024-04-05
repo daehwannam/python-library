@@ -143,6 +143,8 @@ def within_local_main_process(accelerator: Accelerator, local_main_fn, otherwise
         else:
             return otherwise_fn(*args, **kwargs)
 
+    return decorated_local_main_fn
+
 
 class AcceleratorProxy(LazyProxy):
     def __init__(self, fn, *args, **kwargs):

@@ -84,15 +84,22 @@ class ObjectCache:
         self._initializer = NO_VALUE
         self._evaluated = False
 
+    def _assert_object_is_unset(self):
+        max_repr_len = 30
+        assert self._obj is NO_VALUE, f'An object is already set as {repr(self._obj)[:max_repr_len]}'
+        assert self._initializer is NO_VALUE, f'An initializer is already set as {repr(self._initializer)[:max_repr_len]}'
+
+    def is_cached(self):
+        return (self._obj is not NO_VALUE) or \
+            (self._initializer is not NO_VALUE)
+
     def set_object(self, obj):
-        assert self._obj is NO_VALUE
-        assert self._initializer is NO_VALUE
+        self._assert_object_is_unset()
         self._obj = obj
         return obj
 
     def set_initializer(self, obj_fn):
-        assert self._obj is NO_VALUE
-        assert self._initializer is NO_VALUE
+        self._assert_object_is_unset()
         self._initializer = obj_fn
         return obj_fn
 

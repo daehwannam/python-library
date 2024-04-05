@@ -139,9 +139,7 @@ class Environment:
             for idx, (name, param) in enumerate(signature.parameters.items()):
                 if (
                         param.default is not inspect.Parameter.empty and
-                        (isinstance(param.default, _Placeholder) or
-                         isinstance(param.default, _PlaceholderFactory)) and
-                        param.default.env == self
+                        self._is_placeholder(param.default)
                 ):
                     if param.kind == inspect._ParameterKind.POSITIONAL_OR_KEYWORD:
                         pos_idx = idx
@@ -169,6 +167,11 @@ class Environment:
             return func(*args, **new_kwargs)
 
         return new_func
+
+    def _is_placeholder(self, obj):
+        return ((isinstance(obj, _Placeholder) or
+                 isinstance(obj, _PlaceholderFactory)) and
+                obj.env is self)
 
     def __call__(self, *args, **kwargs):
         if len(args) > 0:
@@ -254,7 +257,6 @@ class _PlaceholderWithDefaultValue(_Placeholder):
             return super().get_value()
         except EnvironmentAttributeError:
             return eval_lazy_obj(self.default_value)
-
 
 
 # block

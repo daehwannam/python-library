@@ -19,3 +19,10 @@ def creatable(cls, *args, exception_cls=ValueError, **kwargs):
         return True
     except exception_cls:
         return False
+
+
+def typecast(obj, typ):
+    if isinstance(obj, typ):
+        return obj
+    else:
+        return typ(obj)

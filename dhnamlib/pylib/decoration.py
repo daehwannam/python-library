@@ -343,6 +343,47 @@ class Register:
         _pairs = pairs.memory.items() if isinstance(pairs, Register) else pairs
         self.memory.update(_pairs, **kwargs)
 
+    def items(self):
+        return self.memory.items()
+
+
+class MethodRegister(Register):
+    '''
+    Example:
+
+    >>> class User:
+    ...     method_register = MethodRegister()
+    ...
+    ...     def __init__(self, first_name, last_name):
+    ...         self.first_name = first_name
+    ...         self.last_name = last_name
+    ...         self.register = self.method_register.instantiate(self)
+    ...
+    ...     @method_register('full_name')
+    ...     def get_full_name(self):
+    ...         return f'{self.first_name} {self.last_name}'
+    ...
+    ...     @method_register('id')
+    ...     def get_id(self):
+    ...         return f'{self.first_name}-{self.last_name}'.lower()
+    ...
+    ...     def get(self, key):
+    ...         return self.register.retrieve(key)()
+
+    >>> user = User('John', 'Smith')
+    >>> user.get('id')
+    'john-smith'
+    '''
+
+    def instantiate(self, obj):
+        register = Register()
+        for key, value in self.items():
+            if hasattr(obj, value.__name__):
+                register(key, getattr(obj, value.__name__))
+            else:
+                register(key, value)
+        return register
+
 
 class LazyRegisterValue:
     def __init__(self, register, identifier):

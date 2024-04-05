@@ -160,6 +160,22 @@ def as_python_object_from_json(dic):
 #         else:
 #             return super().default(obj)
 
+def parse_types(types):
+    if len(types) == 1 and not isinstance(types[0], type):
+        types = types[0]
+
+    for typ in types:
+        assert isinstance(typ, type)
+
+    if not isinstance(types, tuple):
+        types = tuple(types)
+
+    return types
+
+
+def _get_skip_repr(obj):
+    return f'SKIP: {str(type(obj))}'
+
 
 def json_skip_types(*types):
     '''
@@ -171,22 +187,62 @@ def json_skip_types(*types):
     [1, 2, 3, {'some_key': 'some_value'}, "SKIP: <class 'set'>", "SKIP: <class 'bytes'>"]
     '''
 
-    if len(types) == 1 and not isinstance(types[0], type):
-        types = types[0]
+    types = parse_types(types)
 
-    for typ in types:
-        assert isinstance(typ, type)
-    if isinstance(types, tuple):
-        types = tuple(types)
-
-    class SkippingJSONEncoder(json.JSONEncoder):
+    class TypeSkippingJSONEncoder(json.JSONEncoder):
         def default(self, obj):
             if isinstance(obj, types):
-                return f'SKIP: {str(type(obj))}'
+                return _get_skip_repr(obj)
             else:
                 return super().default(obj)
 
-    return SkippingJSONEncoder
+    return TypeSkippingJSONEncoder
+
+
+def is_json_serializable(obj):
+    '''
+    Example:
+
+    >>> is_json_serializable([1, 2, 3])
+    True
+    >>> is_json_serializable(object())
+    False
+    '''
+    if obj is None or isinstance(obj, (bool, int, float, tuple, list, dict)):
+        return True
+    else:
+        if type(obj) not in _json_type_serializability_dict:
+            _json_type_serializability_dict[type(obj)] = _is_json_serializable_obj(obj)
+        return _json_type_serializability_dict[type(obj)]
+
+
+_json_type_serializability_dict = {}
+
+
+def _is_json_serializable_obj(obj):
+    # https://stackoverflow.com/a/42033176
+    try:
+        json.dumps(obj)
+        return True
+    except TypeError:
+        return False
+
+
+class InvalidObjectSkippingJSONEncoder(json.JSONEncoder):
+    '''
+    Example:
+
+    >>> data = [1, 2, 3, {'some_key': 'some_value'}, set(['an', 'set', 'example']), bytes([0, 1, 2, 3])]
+    >>> j = json.dumps(data, cls=InvalidObjectSkippingJSONEncoder)
+    >>> print(json.loads(j))
+    [1, 2, 3, {'some_key': 'some_value'}, "SKIP: <class 'set'>", "SKIP: <class 'bytes'>"]
+    '''
+
+    def default(self, obj):
+        if not is_json_serializable(obj):
+            return _get_skip_repr(obj)
+        else:
+            return super().default(obj)
 
 
 def example_extended_json_encoder():

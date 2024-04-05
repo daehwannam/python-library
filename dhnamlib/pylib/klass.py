@@ -301,7 +301,7 @@ def subclass(cls):
     ...         pass
     ...     def bar(self):
     ...         pass
-    >>>
+
     >>> @subclass
     ... class B(A):
     ...     @implement
@@ -311,34 +311,61 @@ def subclass(cls):
     ...     def bar(self):
     ...         pass
 
+    >>> @subclass
+    ... class C(B):
+    ...     @redeclare
+    ...     def foo(self):
+    ...         pass
+
     """
+
+    global _implemented_functions, _overriden_functions, _redeclared_functions
 
     interface = Interface(*cls.__bases__)
 
-    for attr, value in vars(cls).items():
-        if hasattr(value, '_implement'):
-            delattr(value, '_implement')
-            setattr(cls, attr, interface.implement(value))
-        elif hasattr(value, '_redeclare'):
-            delattr(value, '_redeclare')
-            setattr(cls, attr, interface.redeclare(value))
-        elif hasattr(value, '_override'):
-            delattr(value, '_override')
-            setattr(cls, attr, interface.override(value))
+    def check_func_definition(func):
+        assert hasattr(cls, func.__name__), f'`{func.__name__}` is defined outside of `{cls.__name__}`'
+
+    for func in _implemented_functions:
+        check_func_definition(func)
+        # setattr(cls, func.__name__, interface.implement(func))  # `setattr` makes `subclass` not to work with other
+        interface.implement(func)
+    _implemented_functions = []
+
+    for func in _redeclared_functions:
+        check_func_definition(func)
+        # setattr(cls, func.__name__, interface.redeclare(func))  # `setattr` makes `subclass` not to work with other
+        interface.redeclare(func)
+    _redeclared_functions = []
+
+    for func in _overriden_functions:
+        check_func_definition(func)
+        # setattr(cls, func.__name__, interface.override(func))  # `setattr` makes `subclass` not to work with other
+        interface.override(func)
+    _overriden_functions = []
 
     return cls
 
 
+_implemented_functions = []
+
+
 def implement(func):
-    func._implement = True
+    _implemented_functions.append(func)
     return func
+
+
+_redeclared_functions = []
 
 
 def redeclare(func):
-    func._redeclare = True
-    return func
+    _redeclared_functions.append(func)
+    return abstractmethod(func)
+
+
+_overriden_functions = []
 
 
 def override(func):
-    func._override = True
+    _overriden_functions.append(func)
     return func
