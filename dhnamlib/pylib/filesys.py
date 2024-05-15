@@ -14,9 +14,16 @@ import re
 import itertools
 import fractions
 
+from .constant import NO_VALUE
+
 
 try:
     import jsonlines
+except ModuleNotFoundError:
+    pass
+
+try:
+    import pandas
 except ModuleNotFoundError:
     pass
 
@@ -361,6 +368,23 @@ def jsonl_save(objects, path, **kwargs):
 def jsonl_load(path, **kwargs):
     with jsonlines.open(path) as reader:
         return tuple(reader)
+
+
+def pandas_tsv_load(path, containing_header=NO_VALUE, column_names=NO_VALUE):
+    kwargs = {}
+
+    if containing_header is not NO_VALUE:
+        if containing_header is True:
+            kwargs['header'] = 0    # Use 0'th raw as the header
+        elif containing_header is False:
+            kwargs['header'] = None  # The 0'th raw is also data
+        else:
+            raise Exception('The argument `header` should be an instance of bool')
+
+    if NO_VALUE is not NO_VALUE:
+        kwargs['names'] = column_names
+
+    return pandas.read_csv(path, sep='\t', **kwargs)
 
 
 def make_logger(name, log_file_path=None, to_stdout=True, overwriting=False, format_str=None, level=None):

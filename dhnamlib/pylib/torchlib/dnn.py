@@ -424,7 +424,7 @@ def candidate_ids_to_mask(candidate_ids, vocab_size, dtype=torch.long):
 
     return mask
 
-@deprecated  # `apply_recursively` is slow
+@deprecated  # `rcopy` is slow
 def _pad_sequence_0(sequence, padding_value, dim=None, max_length=None):
     '''
     Pad nested sequence. `sequence` can be multi-dimensional lists, such as 3D or 4D arrays.
@@ -464,7 +464,7 @@ def _pad_sequence_0(sequence, padding_value, dim=None, max_length=None):
 
         max_length = find_max_length(sequence, 0)
 
-    padded_sequence = iteration.apply_recursively(sequence, coll_fn=list)
+    padded_sequence = iteration.rcopy(sequence, coll_fn=list)
 
     def pad_recursively(seq, depth):
         if depth < dim:

@@ -7,7 +7,7 @@ from transformers import LogitsProcessor
 from transformers.file_utils import add_start_docstrings
 from transformers.generation_logits_process import LOGITS_PROCESSOR_INPUTS_DOCSTRING
 
-from ..iteration import apply_recursively
+from ..iteration import rcopy
 from ..decoration import deprecated
 
 from ..torchlib.dnn import mask_tensor, masked_log_softmax
@@ -53,7 +53,7 @@ def join_tokens(
         skip_special_tokens: bool = False,
         clean_up_tokenization_spaces: bool = True,
         **kwargs):
-    token_ids = apply_recursively(tokens, coll_fn=tokenizer.convert_tokens_to_ids)
+    token_ids = rcopy(tokens, coll_fn=tokenizer.convert_tokens_to_ids)
 
     return tokenizer.decode(
         token_ids,

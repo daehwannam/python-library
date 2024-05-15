@@ -24,26 +24,42 @@ def remove_backquoted_symbol_prefixes(expr):
         return expr
 
 
-def repr_as_raw_str(expr: str):
-    '''
-    Example:
+# def repr_as_raw_str(expr: str):
+#     '''
+#     Example:
 
-    >>> repr_as_raw_str('some text here')
-    '"some text here"'
-    '''
+#     >>> repr_as_raw_str('some text here')
+#     '"some text here"'
+#     '''
 
-    return json.dumps(expr)
+#     return json.dumps(expr)
 
 def repr_as_hash_str(expr: str):
-    '''
+    r'''
     Example:
 
-    >>> repr_as_hash_str('some text here')
-    '#"some text here"'
-    '''
+    >>> repr_as_hash_str('some "text" here')
+    '#"some \\"text\\" here"'
 
-    # without '#' character, string becomes raw-string in Lissp (Hissp)
-    # #"text..." is called as Hash String in Lissp.
+    Without '#' character, a string becomes a "raw string" in Lissp (Hissp)
+    #"text..." is called a "hash string" in Lissp.
+
+    Hash string is useful especially to express a string that contains special characters,
+    such as double quotes, or unicode characters.
+
+    In addition, a hash string representation should be encoded by `json.dumps` to be evaluated.
+
+    >>> import json
+    >>> from dhnamlib.hissplib.compile import eval_lissp
+    >>> eval_lissp('(.upper #{})'.format(json.dumps('"π" is called PI.')))
+    '"Π" IS CALLED PI.'
+
+    That resemble Python's eval
+    >>> eval("\"\\n\" + \"\\n\"")
+    '\n\n'
+    >>> eval('{} + {}'.format(json.dumps("\n"), json.dumps("\n")))
+    '\n\n'
+    '''
 
     return '#' + json.dumps(expr)
 
@@ -59,8 +75,11 @@ def demunge_recursively(expr):
     >>> demunge_recursively(expr)
     ('outter-symbol-1', ('inner-symbol-1', 'inner-symbol-2'), 'outter-symbol-2')
     '''
+
     if isinstance(expr, str):
         return demunge(expr)
-    else:
-        assert isinstance(expr, (list, tuple))
+    elif isinstance(expr, (list, tuple)):
         return tuple(map(demunge_recursively, expr))
+    else:
+        # e.g. int
+        return expr
