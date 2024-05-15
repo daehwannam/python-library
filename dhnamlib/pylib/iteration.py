@@ -5,6 +5,7 @@ import importlib
 from .function import identity
 from .constant import NO_VALUE
 from .exception import DuplicateValueError, NotFoundError
+from .typeutil import is_type
 # from .iteration import deprecated
 
 
@@ -231,28 +232,61 @@ def not_none_valued_dict(pairs=(), **kwargs):
     return dict(not_none_valued_pairs(pairs, **kwargs))
 
 
-def apply_recursively(obj, dict_fn=None, coll_fn=None):
-    def get_dict_cls(obj):
-        if dict_fn is None:
-            return type(obj)
-        else:
-            return dict_fn
+def rmap(
+        fn, coll,
+        coll_fn=None, dict_fn=None,
+        coll_type=(list, tuple, set), dict_type=dict
+):
+    '''
+    Recursive map.
+    Similar to `rmapcar` in the book "On Lisp".
 
-    def get_coll_cls(obj):
-        if coll_fn is None:
-            return type(obj)
-        else:
-            return coll_fn
+    Example:
+
+    >>> rmap(str, [1, [2, 3], [4, 5, [6, 7, 8]]], coll_fn=tuple)
+    ('1', ('2', '3'), ('4', '5', ('6', '7', '8')))
+
+    >>> rmap(str, [{'a': [1, 2, 3], 'b': [4, 5, 6]}, {'c': [7, 8, 9]}], coll_fn=tuple, dict_fn=list)
+    ([('a', ('1', '2', '3')), ('b', ('4', '5', '6'))], [('c', ('7', '8', '9'))])
+    '''
+
+    assert not isinstance(coll, str), 'str type is not allowed as it raises RecursionError due to infinite recursion.'
+    assert is_type(coll_type)
+    assert is_type(dict_type)
 
     def recurse(obj):
-        if isinstance(obj, dict):
-            return get_dict_cls(obj)([k, recurse(v)] for k, v in obj.items())
-        elif isinstance(obj, (list, tuple, set)):
-            return get_coll_cls(obj)(map(recurse, obj))
+        if isinstance(obj, coll_type):
+            _coll_fn = coll_fn or type(obj)
+            return _coll_fn(recurse(elem) for elem in obj)
+        elif isinstance(obj, dict_type):
+            _dict_fn = dict_fn or type(obj)
+            return _dict_fn((recurse(k), recurse(v)) for k, v in obj.items())
         else:
-            return obj
+            return fn(obj)
 
-    return recurse(obj)
+    return recurse(coll)
+
+
+def rcopy(
+        obj,
+        dict_fn=None, coll_fn=None,
+        coll_type=(list, tuple, set), dict_type=dict
+):
+    '''
+    Example:
+
+    Recursive copy.
+
+    >>> rcopy([1, [2, 3], [4, 5, [6, 7, 8]]], coll_fn=list)
+    [1, [2, 3], [4, 5, [6, 7, 8]]]
+
+    >>> rcopy([{'a': [1, 2, 3], 'b': [4, 5, 6]}, {'c': [7, 8, 9]}], coll_fn=tuple, dict_fn=list)
+    ([('a', (1, 2, 3)), ('b', (4, 5, 6))], [('c', (7, 8, 9))])
+    '''
+
+    return rmap(identity, obj,
+                coll_fn=coll_fn, dict_fn=dict_fn,
+                coll_type=coll_type, dict_type=dict_type)
 
 
 def all_same(seq):
@@ -749,22 +783,25 @@ def partition(seq, n, fill_value=NO_VALUE, strict=True):
             yield tuple(items)
 
 
-def flatten(coll, coll_type=None):
+def flatten(coll, coll_type=(list, tuple, set)):
     # Similar to Hy's flatten
     # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
     '''
+    Fallten objects in `coll` where the types of objects are in `coll_type`.
+
     Example:
 
     >>> flatten([0, [1, 2, [3, [4, 5], 6], 7, 8], 9])
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     '''
 
-    assert not isinstance(coll, str), 'str type input raises RecursionError'
+    assert not isinstance(coll, str), 'str type is not allowed as it raises RecursionError due to infinite recursion.'
+    assert is_type(coll_type)
 
-    if coll_type is None:
-        coll_type = type(coll)
-    elif isinstance(coll_type, list):
-        coll_type = tuple(coll_type)
+    # if coll_type is None:
+    #     coll_type = type(coll)
+    # elif isinstance(coll_type, list):
+    #     coll_type = tuple(coll_type)
 
     flattened = []
 
@@ -966,3 +1003,5 @@ def iterfirstk(sequence, k):
     iterator = iter(sequence)
     for idx in range(k):
         yield next(iterator)
+
+
