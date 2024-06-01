@@ -229,7 +229,12 @@ def not_none_valued_dict(pairs=(), **kwargs):
     >>> not_none_valued_dict(a=10, b=None, c=20)
     {'a': 10, 'c': 20}
     '''
-    return dict(not_none_valued_pairs(pairs, **kwargs))
+    if len(pairs) == 1 and isinstance(pairs, dict):
+        _pairs = pairs.items()
+    else:
+        _pairs = pairs
+
+    return dict(not_none_valued_pairs(_pairs, **kwargs))
 
 
 def rmap(
