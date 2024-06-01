@@ -845,6 +845,17 @@ def lastelem(coll):
         return elem
 
 
+def dropfirst(coll, count):
+    # Similar to Hy's drop
+    # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
+
+    '''
+    Example:
+    '''
+
+    return itertools.islice(coll, count, None)
+
+
 def chainelems(coll):
     '''
     Example:
