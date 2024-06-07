@@ -5,4 +5,9 @@ class AbstractType:
 
 Abstract = AbstractType()
 
-NO_VALUE = object()
+
+class NoValueType:
+    pass
+
+
+NO_VALUE = NoValueType()

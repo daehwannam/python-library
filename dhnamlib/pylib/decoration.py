@@ -126,6 +126,27 @@ def id_cache(func):
 
 @curry
 def keyed_cache(key, func):
+    """
+    Cache with a custom key function.
+
+    >>> @keyed_cache(lambda coll, target: (id(coll), target))
+    ... def find(coll, target):
+    ...     for idx, elem in enumerate(coll):
+    ...         if elem == target:
+    ...             return idx
+    ...     else:
+    ...         return None
+
+    >>> large_tuple = tuple(range(100))
+    >>> find(large_tuple, 90)
+    89
+    >>> find(large_tuple, 90)
+    89
+
+    In the above example, the key function uses `id(coll)` to compute a key.
+    Since `coll` can be a large object, using its id is efficient for computing the key.
+    """
+
     cache_memory = {}
 
     @functools.wraps(func)
