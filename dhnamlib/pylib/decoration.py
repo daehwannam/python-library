@@ -57,6 +57,7 @@ def curry(func, *args, **kwargs):
                 position_to_param_key.append(name)
 
     def make_curried(prev_args, prev_kwargs):
+        @functools.wraps(func)
         def curried(*args, **kwargs):
             new_args = list(prev_args)
             for idx, arg in enumerate(args, len(prev_args)):

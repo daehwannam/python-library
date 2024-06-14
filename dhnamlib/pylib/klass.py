@@ -330,18 +330,21 @@ def subclass(cls):
         check_func_definition(func)
         # setattr(cls, func.__name__, interface.implement(func))  # `setattr` makes `subclass` not to work with other
         interface.implement(func)
+    # del _implemented_functions[:]
     _implemented_functions = []
 
     for func in _redeclared_functions:
         check_func_definition(func)
         # setattr(cls, func.__name__, interface.redeclare(func))  # `setattr` makes `subclass` not to work with other
         interface.redeclare(func)
+    # del _redeclared_functions[:]
     _redeclared_functions = []
 
     for func in _overriden_functions:
         check_func_definition(func)
         # setattr(cls, func.__name__, interface.override(func))  # `setattr` makes `subclass` not to work with other
         interface.override(func)
+    # del _overriden_functions[:]
     _overriden_functions = []
 
     return cls

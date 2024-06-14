@@ -3,6 +3,7 @@ import re
 import warnings
 from argparse import Namespace
 from enum import Enum, auto as enum_auto
+from itertools import chain
 
 from .iteration import distinct_pairs
 from .exception import DuplicateValueError
@@ -279,6 +280,16 @@ class TreeStructure:
 
         recurse(self)
         return all_values
+
+    def get_value_tree(self):
+        def recurse(tree):
+            if not tree.terminal:
+                return tuple(chain([tree.value], (recurse(child) for child in tree.children)))
+            else:
+                return tree.value
+
+        # a value_tree doesn't include it's parent
+        return recurse(self)
 
     def count_nodes(self, enable_prev=True):
         count = 1
