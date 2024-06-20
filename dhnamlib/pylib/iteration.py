@@ -237,6 +237,9 @@ def not_none_valued_dict(pairs=(), **kwargs):
     return dict(not_none_valued_pairs(_pairs, **kwargs))
 
 
+COLL_TYPE_STR_ERROR_MESSAGE = 'str type is not allowed as it raises RecursionError due to infinite recursion.'
+
+
 def rmap(
         fn, coll,
         coll_fn=None, dict_fn=None,
@@ -255,7 +258,7 @@ def rmap(
     ([('a', ('1', '2', '3')), ('b', ('4', '5', '6'))], [('c', ('7', '8', '9'))])
     '''
 
-    assert not isinstance(coll, str), 'str type is not allowed as it raises RecursionError due to infinite recursion.'
+    assert not isinstance(coll, str), COLL_TYPE_STR_ERROR_MESSAGE
     assert is_type(coll_type)
     assert is_type(dict_type)
 
@@ -800,7 +803,7 @@ def flatten(coll, coll_type=(list, tuple, set)):
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     '''
 
-    assert not isinstance(coll, str), 'str type is not allowed as it raises RecursionError due to infinite recursion.'
+    assert not isinstance(coll, str), COLL_TYPE_STR_ERROR_MESSAGE
     assert is_type(coll_type)
 
     # if coll_type is None:
