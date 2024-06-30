@@ -6,7 +6,7 @@ from .function import identity
 from .constant import NO_VALUE
 from .exception import DuplicateValueError, NotFoundError
 from .typeutil import is_type
-# from .iteration import deprecated
+from .decoration import deprecated
 
 
 def unique(seq):
@@ -281,9 +281,9 @@ def rcopy(
         coll_type=(list, tuple, set), dict_type=dict
 ):
     '''
-    Example:
-
     Recursive copy.
+
+    Example:
 
     >>> rcopy([1, [2, 3], [4, 5, [6, 7, 8]]], coll_fn=list)
     [1, [2, 3], [4, 5, [6, 7, 8]]]
@@ -295,6 +295,59 @@ def rcopy(
     return rmap(identity, obj,
                 coll_fn=coll_fn, dict_fn=dict_fn,
                 coll_type=coll_type, dict_type=dict_type)
+
+
+def rmemberif(predicate, coll,
+              coll_type=(list, tuple, set), dict_type=dict,
+              default=NO_VALUE):
+    '''
+    Recursive member-if
+
+    Example:
+
+    >>> rmemberif(lambda x: (sum(flatten(x)) < 0), [1, [-2, 3, -4], 5])
+    [-2, 3, -4]
+
+    >>> rmemberif(lambda x: isinstance(x, list), {'x': {'a': 1, 'b': 2, 'c': [3, 4, 5]}})
+    [3, 4, 5]
+    '''
+
+    assert not isinstance(coll, str), COLL_TYPE_STR_ERROR_MESSAGE
+    assert is_type(coll_type)
+    assert is_type(dict_type)
+
+    NO_OUTPUT = object()
+
+    def is_output(obj):
+        return obj is not NO_OUTPUT
+
+    def recurse(obj):
+        if predicate(obj):
+            return obj
+        elif isinstance(obj, coll_type):
+            return any_value(map(recurse, obj), is_valid=is_output, default=NO_OUTPUT)
+        elif isinstance(obj, dict_type):
+            return any_value(map(recurse, chainelems(obj.items())), is_valid=is_output, default=NO_OUTPUT)
+        else:
+            return NO_OUTPUT
+
+    output = recurse(coll)
+    if output is NO_OUTPUT:
+        if default is NO_VALUE:
+            raise NotFoundError('No value satisfies the predicate.')
+        else:
+            return default
+    else:
+        return output
+
+
+@deprecated
+def rmember(target, coll,
+            coll_type=(list, tuple, set), dict_type=dict):
+    def predicate(obj):
+        return obj == target
+
+    return rmemberif(predicate, coll, coll_type=coll_type, dict_type=dict_type)
 
 
 def all_same(seq):
@@ -417,6 +470,15 @@ def finditer(seq, target, key=identity, default=NO_VALUE, test=None, reverse=Fal
 def indexiter(seq, target, key=identity, default=NO_VALUE, test=None, reverse=False):
     for idx, elem in _iter_idx_and_elem(seq, target, key=key, default=default, test=test, reverse=reverse):
         yield idx
+
+
+@deprecated
+def findif(seq, predicate, default=NO_VALUE):
+    for elem in seq:
+        if predicate(elem):
+            return elem
+    else:
+        return default
 
 
 def any_value(seq, is_valid=bool, default=NO_VALUE):
@@ -853,7 +915,7 @@ def lastelem(coll):
         return elem
 
 
-def dropfirst(coll, count):
+def dropfirstk(coll, count):
     # Similar to Hy's drop
     # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
 
