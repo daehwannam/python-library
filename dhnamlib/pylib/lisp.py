@@ -7,7 +7,9 @@ from dhnamlib.pylib.iteration import partition
 
 def parse_hy_args(symbols):
     '''
-    e.g. parse_hy_args(*'100 200 300 :x 400 :y 500'.split())
+    Example:
+    >>> parse_hy_args('100 200 300 :x 400 :y 500'.split())
+    (['100', '200', '300'], {'x': '400', 'y': '500'})
     '''
     args = []
 
@@ -43,7 +45,6 @@ def get_prefixed_paren_index_pairs(text, info_dicts=[dict(prefix="'", paren_pair
     >>> info_and_index_pair_tuples = get_prefixed_paren_index_pairs(text)
     >>> info_dict, index_pair = info_and_index_pair_tuples[0]
     >>> text[index_pair[0]: index_pair[1] + 1]  # index_pair[0] and index_pair[1] mean the indices of the opening and closing parentheses
-
     "(c d '(e f))"
     '''
     # return a list of (prefix, index_pair)
@@ -98,12 +99,22 @@ def remove_comments(text):
 
 
 def replace_prefixed_parens(text, info_dicts):
+    '''
+    Example:
+
+    >>> replace_prefixed_parens(
+    ...     text="(progn $(+ 10 20 30) ^[+ 10 20 30])",
+    ...     info_dicts=[dict(prefix='$', paren_pair='()', fn=lambda x: '#"({})"'.format(x)),
+    ...                dict(prefix='^', paren_pair='[]', fn=lambda x: '#"[{}]"'.format(x))])
+    '(progn #"(+ 10 20 30)" #"[+ 10 20 30]")'
+    '''
+
     info_and_index_pair_tuples = get_prefixed_paren_index_pairs(text, info_dicts)
     prev_r_index = -1
     splits = []
     for info_dict, (l_index, r_index) in info_and_index_pair_tuples:
         splits.append(text[prev_r_index + 1: l_index - len(info_dict['prefix'])])
-        splits.append(info_dict['fn'](text[l_index: r_index + 1]))
+        splits.append(info_dict['fn'](text[l_index + 1: r_index]))
         prev_r_index = r_index
     splits.append(text[prev_r_index + 1:])
     return ''.join(splits)

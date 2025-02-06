@@ -82,5 +82,14 @@ for op_name, func in op_name_func_pairs:
 
 
 def import_operators():
+    """
+    >>> from dhnamlib.hissplib.compile import eval_lissp
+    >>> import_operators()
+    >>> eval_lissp('(+ "Hello" " " "World" "!")')
+    'Hello World!'
+    >>> eval_lissp('(- 100 10 5)')
+    85
+    """
+
     for op_name, func in op_name_func_pairs:
         inspect.stack()[1][0].f_locals.__setitem__(munge(op_name), func)

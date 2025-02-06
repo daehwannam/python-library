@@ -10,21 +10,21 @@ def lissp_to_hissp(lissp_expr):
     return next(lissp_parser.reads(lissp_expr))
 
 
-def eval_lissp(code, ns=None, extra_ns=None):
-    if ns is None:
+def eval_lissp(code, env=None, extra_env=None):
+    if env is None:
         # merging globals and locals
-        # ns = {**inspect.stack()[1].frame.f_globals,
+        # env = {**inspect.stack()[1].frame.f_globals,
         #       **inspect.stack()[1].frame.f_locals}
-        ns = {**inspect.stack()[1][0].f_globals,
-              **inspect.stack()[1][0].f_locals}
+        env = {**inspect.stack()[1][0].f_globals,
+               **inspect.stack()[1][0].f_locals}
 
-    if extra_ns is not None:
-        ns = {**ns, **extra_ns}
+    if extra_env is not None:
+        env = {**env, **extra_env}
 
     hissp_form = lissp_to_hissp(code)
-    py_code = readerless(hissp_form, ns=ns)
+    py_code = readerless(hissp_form, env=env)
 
-    return eval(py_code, ns)
+    return eval(py_code, env)
 
 
 if __name__ == '__main__':

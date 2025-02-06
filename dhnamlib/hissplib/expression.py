@@ -5,6 +5,7 @@ from hissp.munger import demunge
 from hissp.compiler import MAYBE
 
 MAIN = '__main__'
+# MAYBE = "..QzMaybe_."
 backquoted_symbol_prefixes = [
     f'{MAIN}{MAYBE}',
     f'{MAIN}..',
@@ -12,6 +13,20 @@ backquoted_symbol_prefixes = [
 ]
 
 def remove_backquoted_symbol_prefixes(expr):
+    '''
+    Example:
+
+    >>> from dhnamlib.hissplib.compile import eval_lissp
+
+    >>> original = eval_lissp("`(+ + print list ,list 1 2 3)")
+    >>> print(original)
+    ('__main__..QzMaybe_.QzPLUS_', '__main__..QzPLUS_', 'builtins..print', 'builtins..list', <class 'list'>, 1, 2, 3)
+
+    >>> removed = remove_backquoted_symbol_prefixes(original)
+    >>> print(removed)
+    ('QzPLUS_', 'QzPLUS_', 'print', 'list', <class 'list'>, 1, 2, 3)
+    '''
+
     if isinstance(expr, str):
         for removable_symbol_prefix in backquoted_symbol_prefixes:
             if expr.startswith(removable_symbol_prefix):
@@ -36,6 +51,11 @@ def remove_backquoted_symbol_prefixes(expr):
 
 def repr_as_hash_str(expr: str):
     r'''
+    Note:
+    Hash string was used in "hissp==0.3.0".
+    However, it's not used in "hissp==0.5.0".
+    In "hissp==0.5.0", normal string can represent special characters with backslash (e.g "\n").
+    
     Example:
 
     >>> repr_as_hash_str('some "text" here')

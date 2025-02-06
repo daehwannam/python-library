@@ -1,5 +1,6 @@
 
-(hissp.basic.._macro_.prelude)
+;; (hissp.basic.._macro_.prelude)  ; hissp==0.3.0
+(hissp.macros.._macro_.prelude)  ; hissp==0.5.0
 
 
 (defmacro el-let (pairs : :* body)

@@ -1,6 +1,6 @@
 
 import itertools
-import importlib
+import importlib.util
 
 from .function import identity
 from .constant import NO_VALUE

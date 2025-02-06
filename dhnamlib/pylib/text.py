@@ -64,3 +64,55 @@ def camel_to_symbol(name):
 def camel_to_snake(name):
     s1 = first_cap_re.sub(r'\1-\2', name)
     return all_cap_re.sub(r'\1-\2', s1).lower()
+
+
+var_regex = re.compile(r'{[_a-zA-Z][_a-zA-Z0-9]*}')
+
+
+def flexible_format(string, *args, **kwargs):
+    '''
+    Example:
+    >>> flexible_format('f(x) = {x + {offset}}', offset=100)
+    'f(x) = {x + 100}'
+    '''
+    def replace_curly(s):
+        return s.replace('{', '{{').replace('}', '}}')
+
+    splits = []
+    index = 0
+    for match_obj in var_regex.finditer(string):
+        span = match_obj.span()
+        splits.append(replace_curly(string[index: span[0]]))
+        splits.append(match_obj.group())
+        index = span[1]
+
+    splits.append(replace_curly(string[index:]))
+
+    template = ''.join(splits)
+
+    return template.format(*args, **kwargs)
+
+
+key_regex = re.compile(r'{([^\s{}]+)}')
+
+def replace_keys(string, pairs, key_regex=key_regex):
+    '''
+    Replace keys.
+    >>> replace_keys('f({name-1}, {name-2}) = {{name-1} + {name-2}}',
+    ...              [['name-1', 'x'], ['name-2', 'y']])
+    'f(x, y) = {x + y}'
+    Example:
+
+    '''
+    kv_dict = pairs if isinstance(pairs, dict) else dict(pairs)
+    splits = []
+    index = 0
+    for match_obj in key_regex.finditer(string):
+        span = match_obj.span()
+        splits.append(string[index: span[0]])
+        splits.append(kv_dict[match_obj.group(1)])
+        index = span[1]
+
+    splits.append(string[index:])
+
+    return ''.join(splits)

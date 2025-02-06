@@ -1,12 +1,24 @@
 
 import inspect
-from hissp.munger import munge
+from importlib.metadata import version
 
+from hissp.munger import munge
+from packaging.version import Version
+
+
+# Note
+# hissp.basic._macro_ is used in hissp=0.3.0
+# hissp.macros._macro_ is used in hissp=0.5.0
+
+if Version(version('hissp')) >= Version('0.4.0'):
+    MACRO_PACKAGE = 'hissp.macros'
+else:
+    MACRO_PACKAGE = 'hissp.basic'
 
 all_macro_import_code = \
-"""
+f"""
 try:
-    from hissp.basic import _macro_
+    from {MACRO_PACKAGE} import _macro_
     _macro_ = __import__('types').SimpleNamespace(**vars(_macro_))
 except ModuleNotFoundError:
     pass
@@ -22,7 +34,7 @@ def import_all_basic_macros():
     exec(all_macro_import_code, globals)
 
 
-# the code for prelude is copied from "hissp.basic"
+# the code for prelude is copied from "hissp.basic" of "hissp=0.3.0"
 prelude_code = \
     ('from functools import partial,reduce\n'
      'from itertools import *;from operator import *\n'
@@ -38,7 +50,7 @@ prelude_code = \
      "_macro_=__import__('types').SimpleNamespace()\n"
      "try:exec('from {}._macro_ import *',vars(_macro_))\n"
      'except ModuleNotFoundError:pass').format(
-         'hissp.basic')
+         MACRO_PACKAGE)
 
 
 def prelude():
@@ -51,7 +63,20 @@ def prelude():
 
 
 def load_macro(module, macro_name, alias):
+    """
+    >>> from dhnamlib.hissplib.module import import_lissp
+    >>> from dhnamlib.hissplib.macro import load_macro
+    >>> from dhnamlib.hissplib.compile import eval_lissp
+
+    >>> hissplib_basic = import_lissp('dhnamlib.hissplib.basic')
+    >>> load_macro(hissplib_basic, 'el-let', 'let')
+
+    >>> eval_lissp('(let ((x 10) (y 20)) (print x y))')
+    10 20
+    """
     globals = inspect.stack()[1][0].f_globals
+    if '_macro_' not in globals:
+        globals['_macro_'] = __import__('types').SimpleNamespace()
     global_macro = globals['_macro_']
     munged_macro_name = munge(macro_name)
     munged_alias = munge(alias)
