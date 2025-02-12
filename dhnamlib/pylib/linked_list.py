@@ -7,6 +7,33 @@ from . import iteration as dhnam_iter
 
 # from .decoration import classproperty
 
+def llist(seq=None):
+    """
+    Create LeftwardList
+    >>> llist()
+    ()
+    >>> llist([0, 1, 2, 3, 4])
+    (0, 1, 2, 3, 4)
+    """
+    if seq is None:
+        return LeftwardList.create()
+    else:
+        return LeftwardList.from_seq(seq)
+
+
+def rlist(seq=None):
+    """
+    Create RightwardList
+    >>> rlist()
+    ()
+    >>> rlist([0, 1, 2, 3, 4])
+    (0, 1, 2, 3, 4)
+    """
+    if seq is None:
+        return RightwardList.create()
+    else:
+        return RightwardList.from_seq(seq)
+
 
 def init_linked_list_class(cls):
     cls.klass = cls
@@ -17,15 +44,30 @@ def init_linked_list_class(cls):
 
     cls.nil = NilList()
 
+    return cls
 
+
+@init_linked_list_class
 class LinkedList(tuple):
+    """
+    >>> from dhnamlib.pylib.linked_list import *
+    >>> ll = LinkedList.create(0, 1, 2, 3, 4)
+    >>> ll
+    (0, 1, 2, 3, 4)
+    >>> ll.car()
+    0
+    >>> ll.cdr()
+    (1, 2, 3, 4)
+    >>> list(ll)
+    [0, 1, 2, 3, 4]
+    """
     # https://stackoverflow.com/a/283630
 
     # def __new__(cls, args=()):
     #     return super(LinkedList, cls).__new__(cls, tuple(args))
 
     @classmethod
-    def create_list(cls, *args, leftward=True):
+    def create(cls, *args, leftward=True):
         return reduce(lambda lst, el: cls((el, lst)),
                       reversed(args) if leftward else args, cls.klass.nil)
 
@@ -37,18 +79,29 @@ class LinkedList(tuple):
             seq = reversed(seq)
         return reduce(lambda lst, el: cls((el, lst)), seq, cls.klass.nil)
 
-    def construct(self, el):
+    def cons(self, el):
         return self.klass((el, self))
 
-    def car(self):
-        return super(LinkedList, self).__getitem__(0) if self is not self.klass.nil else self
+    construct = cons
 
-    first = car
+    def car(self):
+        return super(LinkedList, self).__getitem__(0) if self.__bool__() else self
+
+    # first = car
 
     def cdr(self):
-        return super(LinkedList, self).__getitem__(1) if self is not self.klass.nil else self
+        return super(LinkedList, self).__getitem__(1) if self.__bool__() else self
 
     rest = cdr
+
+    def __bool__(self):
+        return self is not self.klass.nil
+
+    def null(self):
+        return self is self.klass.nil
+
+    def decons(self):
+        return self.car(), self.cdr()
 
     def nth(self, n):
         lst = self
@@ -60,14 +113,14 @@ class LinkedList(tuple):
     def __len__(self):
         lst = self
         count = 0
-        while lst is not self.klass.nil:
+        while lst.__bool__():
             count += 1
             lst = lst.cdr()
         return count
 
     def __iter__(self):
         lst = self
-        while lst is not self.klass.nil:
+        while lst.__bool__():
             yield lst.car()
             lst = lst.cdr()
 
@@ -81,24 +134,46 @@ class LinkedList(tuple):
 
     def find(self, value, key=lambda x: x):
         lst = self
-        while lst is not self.klass.nil:
+        while lst.__bool__():
             if key(lst.car()) == value:
                 return lst
             lst = lst.cdr()
         return lst
-        # if self is self.klass.nil or key(self.car()) == value:
+        # if self.null() or key(self.car()) == value:
         #     return self
         # else:
         #     return self.cdr().find(value, key)
 
 
-init_linked_list_class(LinkedList)
+@init_linked_list_class
+class LeftwardList(LinkedList):
+    """
+    >>> ll = LeftwardList.create(0, 1, 2, 3, 4)
+    >>> ll.first()
+    0
+    >>> ll.rest()
+    (1, 2, 3, 4)
+    >>> list(ll)
+    [0, 1, 2, 3, 4]
+    """
+
+    first = LinkedList.car
 
 
+@init_linked_list_class
 class RightwardList(LinkedList):
+    """
+    >>> rl = RightwardList.create(0, 1, 2, 3, 4)
+    >>> rl.last()
+    4
+    >>> rl.rest()
+    (0, 1, 2, 3)
+    >>> list(rl)
+    [0, 1, 2, 3, 4]
+    """
     @classmethod
-    def create_list(cls, *args, leftward=False):
-        return super().create_list(*args, leftward=leftward)
+    def create(cls, *args, leftward=False):
+        return super().create(*args, leftward=leftward)
 
     @classmethod
     def from_seq(cls, seq, leftward=False):
@@ -111,28 +186,31 @@ class RightwardList(LinkedList):
 
     def __reversed__(self):
         lst = self
-        while lst is not self.klass.nil:
+        while lst.__bool__():
             yield lst.car()
             lst = lst.cdr()
 
+    # def first(self):
+    #     raise Exception('"first" is not used for "RightwardList". Use "last" instead')
 
-init_linked_list_class(RightwardList)
+    last = LinkedList.car
 
 
+@init_linked_list_class
 class AssociationList(LinkedList):
     # @classmethod
-    # def create_list(cls, *args, **kargs):
-    #     return super().create_list(*itertools.chain(args, kargs.items()))
+    # def create(cls, *args, **kargs):
+    #     return super().create(*itertools.chain(args, kargs.items()))
 
     @classmethod
     def from_pairs(cls, *args, **kargs):
-        return super().create_list(*map(tuple, itertools.chain(args, kargs.items())))
+        return super().create(*map(tuple, itertools.chain(args, kargs.items())))
 
     def get(self, attr, key=lambda x: x, defaultvalue=None, defaultfunc=None, no_default=False):
         assert sum(arg is not None for arg in [defaultvalue, defaultfunc]) <= 1
 
         pair = self.find(attr, key=lambda pair: key(pair[0])).car()
-        if pair == self.klass.nil:
+        if pair.null():
             if no_default:
                 raise Exception("Cannot find the correspodning key")
             elif defaultfunc is not None:
@@ -160,7 +238,7 @@ class AssociationList(LinkedList):
                     attr_keys.add(attr_key)
                     yield attr, val
 
-        return self.klass.create_list(*get_gen())
+        return self.klass.create(*get_gen())
 
     @staticmethod
     def compact_assoc(key):
@@ -175,14 +253,9 @@ class AssociationList(LinkedList):
             yield key
 
 
-init_linked_list_class(AssociationList)
-
-
+# @init_linked_list_class
 # class AttrList(AssociationList):
 
 #     def __getattr__(self, attr):
 #         # https://stackoverflow.com/a/5021467
 #         return self.get(attr)
-
-
-# init_linked_list_class(AttrList)

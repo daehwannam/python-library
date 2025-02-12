@@ -5,16 +5,16 @@ from dhnamlib.pylib.iteration import partition
 # from dhnamlib.pylib.iteration import split_by_indices
 
 
-def parse_hy_args(symbols):
+def parse_lisp_args(symbols):
     '''
     Example:
-    >>> parse_hy_args('100 200 300 :x 400 :y 500'.split())
-    (['100', '200', '300'], {'x': '400', 'y': '500'})
+    >>> parse_lisp_args([100, 200, 300, ':x', 400, ':y', 500])
+    ([100, 200, 300], {'x': 400, 'y': 500})
     '''
     args = []
 
     for idx, symbol in enumerate(symbols):
-        if is_keyword(symbol):
+        if isinstance(symbol, str) and is_keyword(symbol):
             break
         else:
             args.append(symbol)

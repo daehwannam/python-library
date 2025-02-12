@@ -2,19 +2,31 @@
 import re
 import inspect
 
-from .decoration import parse_hy_args
+from hissp.munger import munge
+
+# from ..pylib.lisp import parse_hy_args
+from .expression import munge_lisp_args
 
 kw_regex = re.compile(r'{([^\s{}]+)}')
 
 
-def hy_format(string, *args, kw_regex=kw_regex):
+def symbolic_format(string, *args, kw_regex=kw_regex):
     '''
     >>> from dhnamlib.hissplib.compile import eval_lissp
-    >>> a_b_c = 'ABC'
-    >>> eval_lissp('(hy_format "{1} {0} {1} {a-b-c} {x-y-z} {i-j-k}" "One" "Two" :x-y-z "XYZ" :i-j-k None)')
-    'Two One Two ABC XYZ {i_j_k}'
+    >>> aQzH_bQzH_c = 'ABC'  # munge("'a-b-c") == 'aQzH_bQzH_cQzAPOS_'
+    >>> eval_lissp('(symbolic_format "{1} {0} {1} {a-b-c} {x-y-z} {i-j-k}" "One" "Zero" :x-y-z "XYZ" :i-j-k None)')
+    'Zero One Zero ABC XYZ {i-j-k}'
+
+    >>> from dhnamlib.hissplib.macro import load_macro
+    >>> from dhnamlib.hissplib.module import import_lissp
+
+    >>> hissplib_basic = import_lissp('dhnamlib.hissplib.basic')
+    >>> load_macro(hissplib_basic, 'el-let', 'let')
+
+    >>> eval_lissp('(let ((a-b-c "A~B~C")) (symbolic_format "{1} {0} {1} {a-b-c} {x-y-z} {i-j-k}" "One" "Zero" :x-y-z "XYZ" :i-j-k None))')
+    'Zero One Zero A~B~C XYZ {i-j-k}'
     '''
-    hy_args, hy_kwargs = parse_hy_args(args)
+    hy_args, hy_kwargs = munge_lisp_args(args)
 
     splits = []
     index = 0
@@ -40,13 +52,14 @@ def hy_format(string, *args, kw_regex=kw_regex):
             if kw.isnumeric():
                 replaced = hy_args[int(kw)]
             else:
-                var_kw = kw.replace('-', '_')
+                # var_kw = kw.replace('-', '_')
+                var_kw = munge(kw)
                 if var_kw in hy_kwargs:
                     var_value = hy_kwargs[var_kw]
                     if var_value is None:
                         # When a value of a keyword is None,
                         # the placeholder remains as it is.
-                        replaced = f'{{{var_kw}}}'
+                        replaced = f'{{{kw}}}'
                     else:
                         replaced = var_value
                 else:

@@ -8,3 +8,7 @@
   (let (concat-pairs (tuple (itertools..chain : :* pairs)))
     `((lambda (: ,@concat-pairs)
         ,@body))))
+
+(defmacro comment (: :* args)
+  ()  ; () means "empty": https://hissp.readthedocs.io/en/latest/primer.html#empty
+  )

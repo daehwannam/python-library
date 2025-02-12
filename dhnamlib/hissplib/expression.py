@@ -103,3 +103,9 @@ def demunge_recursively(expr):
     else:
         # e.g. int
         return expr
+
+
+def munge_lisp_args(symbols):
+    hy_args, hy_kwargs = parse_lisp_args(symbols)
+    new_hy_kwargs = dict([munge(k), v] for k, v in hy_kwargs.items())
+    return hy_args, new_hy_kwargs
