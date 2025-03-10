@@ -14,7 +14,7 @@ def parse_hy_args(symbols):
 
 def hy_function(func):
     '''
-    >>> from dhnamlib.hissplib.compile import eval_lissp
+    >>> from dhnamlib.hissplib.compiler import eval_lissp
 
     >>> @hy_function
     ... def func(a_b_c, d_e_f):

@@ -3,36 +3,48 @@ import types
 import functools
 from functools import reduce
 import itertools
-from . import iteration as dhnam_iter
+from .iteration import get_values_from_pairs
+from .decoration import deprecated
 
 # from .decoration import classproperty
 
 def llist(seq=None):
     """
-    Create LeftwardList
+    Create _LeftwardList
     >>> llist()
     ()
     >>> llist([0, 1, 2, 3, 4])
     (0, 1, 2, 3, 4)
     """
     if seq is None:
-        return LeftwardList.create()
+        return _LeftwardList.create()
     else:
-        return LeftwardList.from_seq(seq)
+        return _LeftwardList.from_seq(seq)
 
 
 def rlist(seq=None):
     """
-    Create RightwardList
+    Create _RightwardList
     >>> rlist()
     ()
     >>> rlist([0, 1, 2, 3, 4])
     (0, 1, 2, 3, 4)
     """
     if seq is None:
-        return RightwardList.create()
+        return _RightwardList.create()
     else:
-        return RightwardList.from_seq(seq)
+        return _RightwardList.from_seq(seq)
+
+
+def alist(pairs=None, **kwargs):
+    """
+    Create _AssociationList
+    >>> alist()
+    ()
+    >>> alist([['a', 10], ['b', 20]], c=30, d=40)
+    (('a', 10), ('b', 20), ('c', 30), ('d', 40))
+    """
+    return _AssociationList.from_pairs(pairs, **kwargs)
 
 
 def init_linked_list_class(cls):
@@ -48,10 +60,10 @@ def init_linked_list_class(cls):
 
 
 @init_linked_list_class
-class LinkedList(tuple):
+class _LinkedList(tuple):
     """
     >>> from dhnamlib.pylib.linked_list import *
-    >>> ll = LinkedList.create(0, 1, 2, 3, 4)
+    >>> ll = _LinkedList.create(0, 1, 2, 3, 4)
     >>> ll
     (0, 1, 2, 3, 4)
     >>> ll.car()
@@ -64,7 +76,7 @@ class LinkedList(tuple):
     # https://stackoverflow.com/a/283630
 
     # def __new__(cls, args=()):
-    #     return super(LinkedList, cls).__new__(cls, tuple(args))
+    #     return super(_LinkedList, cls).__new__(cls, tuple(args))
 
     @classmethod
     def create(cls, *args, leftward=True):
@@ -82,15 +94,15 @@ class LinkedList(tuple):
     def cons(self, el):
         return self.klass((el, self))
 
-    construct = cons
+    # construct = cons
 
     def car(self):
-        return super(LinkedList, self).__getitem__(0) if self.__bool__() else self
+        return super(_LinkedList, self).__getitem__(0) if self.__bool__() else self
 
     # first = car
 
     def cdr(self):
-        return super(LinkedList, self).__getitem__(1) if self.__bool__() else self
+        return super(_LinkedList, self).__getitem__(1) if self.__bool__() else self
 
     rest = cdr
 
@@ -146,9 +158,9 @@ class LinkedList(tuple):
 
 
 @init_linked_list_class
-class LeftwardList(LinkedList):
+class _LeftwardList(_LinkedList):
     """
-    >>> ll = LeftwardList.create(0, 1, 2, 3, 4)
+    >>> ll = llist([0, 1, 2, 3, 4])
     >>> ll.first()
     0
     >>> ll.rest()
@@ -157,13 +169,13 @@ class LeftwardList(LinkedList):
     [0, 1, 2, 3, 4]
     """
 
-    first = LinkedList.car
+    first = _LinkedList.car
 
 
 @init_linked_list_class
-class RightwardList(LinkedList):
+class _RightwardList(_LinkedList):
     """
-    >>> rl = RightwardList.create(0, 1, 2, 3, 4)
+    >>> rl = rlist([0, 1, 2, 3, 4])
     >>> rl.last()
     4
     >>> rl.rest()
@@ -191,62 +203,77 @@ class RightwardList(LinkedList):
             lst = lst.cdr()
 
     # def first(self):
-    #     raise Exception('"first" is not used for "RightwardList". Use "last" instead')
+    #     raise Exception('"first" is not used for "_RightwardList". Use "last" instead')
 
-    last = LinkedList.car
+    last = _LinkedList.car
 
 
 @init_linked_list_class
-class AssociationList(LinkedList):
-    # @classmethod
-    # def create(cls, *args, **kargs):
-    #     return super().create(*itertools.chain(args, kargs.items()))
-
+class _AssociationList(_LinkedList):
+    """
+    >>> al = alist([['a', 10], ['b', 20], ['a', 25]], c=30, d=40)
+    >>> al
+    (('a', 10), ('b', 20), ('a', 25), ('c', 30), ('d', 40))
+    >>> al.get('a')
+    10
+    >>> al.get('x') is None
+    True
+    >>> al['b']
+    20
+    >>> al.compact()
+    (('a', 10), ('b', 20), ('c', 30), ('d', 40))
+    """
     @classmethod
-    def from_pairs(cls, *args, **kargs):
-        return super().create(*map(tuple, itertools.chain(args, kargs.items())))
+    def from_pairs(cls, pairs=None, **kwargs):
+        if pairs is None:
+            pairs = []
+        return super().create(*map(tuple, itertools.chain(pairs, kwargs.items())))
 
-    def get(self, attr, key=lambda x: x, defaultvalue=None, defaultfunc=None, no_default=False):
+    def assoc(self, attr_key, key=lambda x: x, defaultvalue=None, defaultfunc=None, no_default=False):
         assert sum(arg is not None for arg in [defaultvalue, defaultfunc]) <= 1
 
-        pair = self.find(attr, key=lambda pair: key(pair[0])).car()
-        if pair.null():
+        pair = self.find(attr_key, key=lambda pair: key(pair[0])).car()
+        if pair is self.nil:
             if no_default:
                 raise Exception("Cannot find the correspodning key")
             elif defaultfunc is not None:
                 return defaultfunc()
             else:
                 return defaultvalue
-        return pair[1]
+        return pair
+
+    def get(self, attr_key, key=lambda x: x, defaultvalue=None, defaultfunc=None, no_default=False):
+        _attr_key, value = self.assoc(
+            attr_key, key=key, defaultvalue=defaultvalue, defaultfunc=defaultfunc, no_default=no_default)
+        return value
 
     def __getitem__(self, key):
         return self.get(key, no_default=True)
 
     def get_values(self, attr_list, key=lambda x: x, defaultvalue=None, defaultfunc=None, no_default=False):
-        return dhnam_iter.get_values_from_pairs(
+        return get_values_from_pairs(
             self, attr_list, key, defaultvalue, defaultfunc, no_default)
 
-    def update(self, attr, value):
-        return self.construct((attr, value))
+    def update(self, attr_key, value):
+        return self.cons((attr_key, value))
 
     def compact(self, key=lambda x: x):
         def get_gen():
             attr_keys = set()
-            for attr, val in self:
-                attr_key = key(attr)
+            for attr_key, val in self:
+                attr_key = key(attr_key)
                 if attr_key not in attr_keys:
                     attr_keys.add(attr_key)
-                    yield attr, val
+                    yield attr_key, val
 
         return self.klass.create(*get_gen())
 
+    @deprecated
     @staticmethod
-    def compact_assoc(key):
-        def compact_assoc_with_key(func):
-            @functools.wraps(func)
-            def compacted_func(self, *args, **kwargs):
-                return func(self, *args, **kwargs).compact(key=key)
-        return compact_assoc_with_key
+    def make_compact_func_with_key(func, key):
+        @functools.wraps(func)
+        def compact_func(self, *args, **kwargs):
+            return func(self, *args, **kwargs).compact(key=key)
 
     def keys(self):
         for key, value in self:
@@ -254,7 +281,7 @@ class AssociationList(LinkedList):
 
 
 # @init_linked_list_class
-# class AttrList(AssociationList):
+# class AttrList(_AssociationList):
 
 #     def __getattr__(self, attr):
 #         # https://stackoverflow.com/a/5021467

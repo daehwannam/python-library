@@ -138,7 +138,7 @@ def keyed_cache(key, func):
     ...     else:
     ...         return None
 
-    >>> large_tuple = tuple(range(100))
+    >>> large_tuple = tuple(range(1, 101))
     >>> find(large_tuple, 90)
     89
     >>> find(large_tuple, 90)
@@ -177,15 +177,33 @@ def keyed_cache(key, func):
 #     return decorated_func
 
 
-def deprecated(func):
-    @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        # https://docs.python.org/3/library/warnings.html
-        warnings.warn('Deprecated function {} is called.'.format(func.__name__),
-                      DeprecationWarning)
-        return func(*args, **kwargs)
+def deprecated(func_or_class):
+    if isinstance(func_or_class, type):
+        class NewClass(func_or_class):
+            def __init__(self, *args, **kwargs):
+                warnings.warn('Deprecated class {} is instantiated.'.format(func_or_class.__name__),
+                              DeprecationWarning)
+                return super().__init__(*args, **kwargs)
 
-    return new_func
+        # from . import klass
+        # klass.rename_class(NewClass, func_or_class.__name__)
+
+        def rename_class(cls, new_name):
+            cls.__name__ = new_name
+            cls.__qualname__ = new_name
+
+        rename_class(NewClass, func_or_class.__name__)
+
+        return NewClass
+    else:
+        @functools.wraps(func_or_class)
+        def new_func_or_class(*args, **kwargs):
+            # https://docs.python.org/3/library/warnings.html
+            warnings.warn('Deprecated function {} is called.'.format(func_or_class.__name__),
+                          DeprecationWarning)
+            return func_or_class(*args, **kwargs)
+
+        return new_func_or_class
 
 
 def unnecessary(func):
@@ -205,7 +223,15 @@ def unnecessary(func):
 def notimplemented(func):
     @functools.wraps(func)
     def new_func(*args, **kwargs):
-        raise NotImplementedError(f'{"func.__name__"} is not implemented')
+        raise NotImplementedError(f'The function "{func.__name__}" is not implemented')
+
+    return new_func
+
+
+def prohibit(func):
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        raise Exception(f'The function "{func.__name__}" is prohibited')
 
     return new_func
 
@@ -630,3 +656,125 @@ def attr2str(obj=NO_VALUE):
             if value is _VALUE_PLACEHOLDER:
                 setattr(obj, attr, attr)
         return obj
+
+
+def idhashing(cls_or_obj):
+    """
+    >>> @idhashing
+    ... class IDHashingDict(dict):
+    ...     pass
+
+    >>> d1 = IDHashingDict(a=10, b=20)
+    >>> d2 = IDHashingDict(c=30, d=40)
+    >>> dict([[d1, 100], [d2, 200]])
+    {{'a': 10, 'b': 20}: 100, {'c': 30, 'd': 40}: 200}
+
+    >>> original_dic = dict(a=10, b=20)
+    >>> wrapped_dic = idhashing(original_dic)
+    >>> wrapped_dic
+    IDHashing({'a': 10, 'b': 20})
+
+    >>> wrapped_dic['a']
+    10
+
+    >>> dict([[wrapped_dic, 300,], ['other-key', 400]])
+    {IDHashing({'a': 10, 'b': 20}): 300, 'other-key': 400}
+    """
+    if isinstance(cls_or_obj, type):
+        return _cls_idhashing(cls_or_obj)
+    else:
+        return _IDHashing(cls_or_obj)
+
+
+def _cls_idhashing(cls):
+    """
+    >>> @_cls_idhashing
+    ... class IDHashingDict(dict):
+    ...     pass
+
+    >>> d1 = IDHashingDict(a=10, b=20)
+    >>> d2 = IDHashingDict(c=30, d=40)
+    >>> sorted(repr(d) for d in set([d1, d2]))
+    ["{'a': 10, 'b': 20}", "{'c': 30, 'd': 40}"]
+    """
+
+    # https://stackoverflow.com/a/4901847
+    # https://stackoverflow.com/a/2909119
+
+    def __hash__(self):
+        # object.__hash__ divides id(some_object) by 16
+        # https://stackoverflow.com/a/11324771
+        return id(self) // 16
+
+    def __eq__(self, other):
+        return id(self) == id(other)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    # def __lt__(self, other):
+    #     return id(self) < id(other)
+
+    cls.__hash__ = __hash__
+    cls.__eq__ = __eq__
+    cls.__ne__ = __ne__
+    # cls.__lt__ = __lt__
+
+    return cls
+
+
+class _IDHashing:
+    """
+    >>> dic1 = dict(a=10, b=20)
+    >>> dic2 = _IDHashing(dic1)
+    >>> dic2
+    IDHashing({'a': 10, 'b': 20})
+    >>> dic2['a']
+    10
+    """
+
+    def __init__(self, obj):
+        self._original_obj = obj
+        for attr in dir(obj):
+            # if (
+            #         attr not in self.__overridden_attrs and
+            #         attr not in self.__unassignable_attrs
+            # ):
+            #     setattr(self, attr, getattr(obj, attr))
+            if not (attr.startswith('__') and attr.endswith('__')):
+                setattr(self, attr, getattr(obj, attr))
+
+    # https://stackoverflow.com/a/4901847
+    # https://stackoverflow.com/a/2909119
+
+    def __hash__(self):
+        # object.__hash__ divides id(some_object) by 16
+        # https://stackoverflow.com/a/11324771
+        return id(self._original_obj) // 16
+
+    def __eq__(self, other):
+        if isinstance(other, _IDHashing):
+            return id(self._original_obj) == id(other._original_obj)
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        return type(self).__name__ + f'({repr(self._original_obj)})'
+
+    @staticmethod
+    def _clone_method(func_name):
+        def clone(self, *args, **kwargs):
+            return getattr(self._original_obj, func_name)(*args, **kwargs)
+        return clone
+
+
+for func_name in ['__setitem__', '__getitem__', '__delitem__', '__contains__', '__iter__', '__len__',
+                  '__getslice__', '__setslice__']:
+    setattr(_IDHashing, func_name, _IDHashing._clone_method(func_name))
+
+
+_IDHashing.__name__ = 'IDHashing'
+_IDHashing.__qualname__ = 'IDHashing'

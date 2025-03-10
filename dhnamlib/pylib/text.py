@@ -116,3 +116,38 @@ def replace_keys(string, pairs, key_regex=key_regex):
     splits.append(string[index:])
 
     return ''.join(splits)
+
+
+def check_parens(string, paren_pairs):
+    """
+    >>> check_parens('(a {b [c d e] (f g) {h i}})', ['()', '{}', '[]'])
+    """
+    counter_dict = dict()
+    left_to_pair = dict()
+    right_to_pair = dict()
+    for paren_pair in paren_pairs:
+        lparen, rparen = paren_pair
+        counter = [0]
+        counter_dict[lparen] = counter_dict[rparen] = counter
+
+        assert lparen not in left_to_pair
+        left_to_pair[lparen] = (lparen, rparen)
+
+        assert rparen not in right_to_pair
+        right_to_pair[rparen] = (lparen, rparen)
+
+    for char in string:
+        if char in left_to_pair:
+            counter_dict[char][0] += 1
+        elif char in right_to_pair:
+            if counter_dict[char][0] < 1:
+                lparen, rparen = right_to_pair.get(char)
+                assert rparen == char
+                raise Exception(f'The right parenthesis "{rparen}" occurs earlier than the left parenthesis "{lparen}".')
+            counter_dict[char][0] -= 1
+
+    for paren, counter in counter_dict.items():
+        if counter[0] > 0:
+            lparen, rparen = left_to_pair.get(paren) or right_to_pair.get(paren)
+            assert paren_pair is not None
+            raise Exception(f'The right parenthesis "{rparen}" is fewer than the left parenthesis "{lparen}"')

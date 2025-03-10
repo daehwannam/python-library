@@ -83,7 +83,7 @@ for op_name, func in op_name_func_pairs:
 
 def import_operators():
     """
-    >>> from dhnamlib.hissplib.compile import eval_lissp
+    >>> from dhnamlib.hissplib.compiler import eval_lissp
     >>> import_operators()
     >>> eval_lissp('(+ "Hello" " " "World" "!")')
     'Hello World!'

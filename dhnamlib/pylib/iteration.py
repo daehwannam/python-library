@@ -1,6 +1,7 @@
 
 import itertools
 import importlib.util
+from collections import deque
 
 from .function import identity
 from .constant import NO_VALUE
@@ -16,24 +17,24 @@ def unique(seq):
     >>> unique([10, 20])
     Traceback (most recent call last):
         ...
-    dhnamlib.pylib.exception.DuplicateValueError: the length of sequence is longer than 1
+    Exception: the length of sequence is longer than 1
     >>> unique([0])
     0
     >>> unique([])
     Traceback (most recent call last):
         ...
-    dhnamlib.pylib.exception.DuplicateValueError: the length of sequence is 0
+    Exception: the length of sequence is 0
     '''
     count = 0
     for elem in seq:
         count += 1
         if count > 1:
-            raise DuplicateValueError("the length of sequence is longer than 1")
+            raise Exception("the length of sequence is longer than 1")
     else:
         if count == 1:
             return elem
         else:
-            raise DuplicateValueError("the length of sequence is 0")
+            raise Exception("the length of sequence is 0")
 
 
 def checkup(items, *, predicate):
@@ -660,6 +661,11 @@ def chunk_sizes(total_num, num_chunks):
     >>> sum(chunks)
     20
     '''
+
+    # Note:
+    # This function is related to "itertools.batched",
+    # which splits an iterable object into chunks.
+
     assert total_num >= num_chunks
 
     if total_num % num_chunks > 0:
@@ -918,16 +924,64 @@ def lastelem(coll):
 def dropfirstk(coll, count):
     # Similar to Hy's drop
     # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
-
     '''
     Example:
+
+    >>> tuple(dropfirstk(range(2), 3))
+    ()
+    >>> tuple(dropfirstk(range(3), 3))
+    ()
+    >>> tuple(dropfirstk(range(5), 3))
+    (3, 4)
+    >>> tuple(dropfirstk(range(10), 3))
+    (3, 4, 5, 6, 7, 8, 9)
     '''
 
     return itertools.islice(coll, count, None)
 
 
-def chainelems(coll):
+def droplastk(coll, count):
+    # Similar to Hy's drop-last
+    # https://github.com/hylang/hy/blob/0.18.0/hy/core/language.hy
     '''
+    Example:
+    >>> tuple(droplastk(range(2), 3))
+    ()
+    >>> tuple(droplastk(range(3), 3))
+    ()
+    >>> tuple(droplastk(range(5), 3))
+    (0, 1)
+    >>> tuple(droplastk(range(10), 3))
+    (0, 1, 2, 3, 4, 5, 6)
+    '''
+
+    q = deque()
+    iterator = iter(coll)
+    for _ in range(3):
+        try:
+            q.append(next(iterator))
+        except StopIteration:
+            yield from []
+            break
+    else:
+        while True:
+            try:
+                q.append(next(iterator))
+                yield q.popleft()
+            except StopIteration:
+                yield from []
+                break
+
+@deprecated
+def _chainelems(coll):
+    '''
+    Note:
+    This function can be replaced with "chain.from_iterable"
+
+    >>> tuple(itertools.chain.from_iterable([[1, 2, 3], 'abcdef', 'ABCDEF']))
+    (1, 2, 3, 'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F')
+
+
     Example:
 
     >>> tuple(chainelems([[1, 2, 3], 'abcdef', 'ABCDEF']))
@@ -936,6 +990,9 @@ def chainelems(coll):
     for elem in coll:
         for item in elem:
             yield item
+
+
+chainelems = itertools.chain.from_iterable
 
 
 def repeat_in_order(coll, num_repeats):
@@ -948,6 +1005,18 @@ def repeat_in_order(coll, num_repeats):
     for elem in coll:
         for i in range(num_repeats):
             yield elem
+
+
+def repeat_in_cycle(coll, num_outputs):
+    '''
+    Example:
+
+    >>> tuple(repeat_in_cycle([1, 2, 3, 4,], 10))
+    (1, 2, 3, 4, 1, 2, 3, 4, 1, 2)
+    '''
+
+    return itertools.islice(itertools.cycle(coll), num_outputs)
+
 
 
 def reversed_range(length):

@@ -13,6 +13,7 @@ def parse_lisp_args(symbols):
     '''
     args = []
 
+    idx = -1
     for idx, symbol in enumerate(symbols):
         if isinstance(symbol, str) and is_keyword(symbol):
             break

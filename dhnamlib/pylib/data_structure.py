@@ -9,43 +9,6 @@ from . import algorithm
 from .structure import namedlist
 
 
-class HeapPQ:
-    def __init__(self):
-        self.heap = []
-        self.item_num = 0
-
-    def push(self, priority, item):
-        self.item_num += 1
-        heapq.heappush(self.heap, (priority, self.item_num, item))
-
-    def pop(self):  # return an item of the smallest value of priority
-        priority, item_num, item = heapq.heappop(self.heap)
-        return item
-
-    def pushpop(self, priority, item):
-        self.item_num += 1
-        priority, item_num, item = heapq.heappushpop(self.heap, (priority, self.item_num, item))
-        return item
-
-    @property
-    def root(self):
-        priority, item_num, item = self.heap[0]
-        return item
-
-    def prune(self):
-        pass
-
-    def __bool__(self):
-        return bool(self.heap)
-
-    def __iter__(self):
-        for priority, item_num, item in self.heap:
-            yield item
-
-    def __len__(self):
-        return len(self.heap)
-
-
 class LimitedPQ:
     def __init__(self, size):
         self.max_size = size
@@ -268,46 +231,6 @@ class LIFODict:
 
     def __repr__(self):
         return f'{self.__class__.__name__}({repr(dict(self))})'
-
-
-class PriorityDict:
-    Unit = namedlist('Unit', 'key, value, valid')
-
-    def __init__(self):
-        self.pq = HeapPQ()
-        self.unit_dict = {}
-
-    def update(self, priority, key, value):
-        unit = PriorityDict.Unit(key, value, True)
-        self.pq.push(priority, unit)
-
-        existing_unit = self.unit_dict.get(key)
-        if existing_unit is not None:
-            unit.valid = False
-        self.unit_dict[key] = unit
-
-    def pop(self):
-        unit = self.pq.pop()
-        while not unit.valid:
-            unit = self.pq.pop()
-        del self.self.unit_dict[unit.key]
-        return unit.value
-
-    def __iter__(self):
-        return self.keys()
-
-    def keys(self):
-        return self.unit_dict.keys()
-
-    def items(self):
-        value_idx = self.Unit.get_attr_idx('value')
-        for key, unit in self.unit_dict.items():
-            yield key, unit[value_idx]
-
-    def values(self):
-        value_idx = self.Unit.get_attr_idx('value')
-        for unit in self.unit_dict.values():
-            yield unit[value_idx]
 
 
 class BipartiteGraph:

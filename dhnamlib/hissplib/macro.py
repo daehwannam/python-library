@@ -18,8 +18,10 @@ else:
 all_macro_import_code = \
 f"""
 try:
-    from {MACRO_PACKAGE} import _macro_
-    _macro_ = __import__('types').SimpleNamespace(**vars(_macro_))
+    from {MACRO_PACKAGE} import _macro_ as _basic_macro_
+    if '_macro_' not in locals():
+        _macro_ = __import__('types').SimpleNamespace()
+    _macro_ = __import__('types').SimpleNamespace(**vars(_macro_), **vars(_basic_macro_))
 except ModuleNotFoundError:
     pass
 """
@@ -35,22 +37,27 @@ def import_all_basic_macros():
 
 
 # the code for prelude is copied from "hissp.basic" of "hissp=0.3.0"
+# prelude_code = \
+#     ('from functools import partial,reduce\n'
+#      'from itertools import *;from operator import *\n'
+#      'def entuple(*xs):return xs\n'
+#      'def enlist(*xs):return[*xs]\n'
+#      'def enset(*xs):return{{*xs}}\n'
+#      "def enfrost(*xs):return __import__('builtins').frozenset(xs)\n"
+#      'def endict(*kvs):return{{k:i.__next__()for i in[kvs.__iter__()]for k in i}}\n'
+#      "def enstr(*xs):return''.join(''.__class__(x)for x in xs)\n"
+#      'def engarde(xs,h,f,/,*a,**kw):\n'
+#      ' try:return f(*a,**kw)\n'
+#      ' except xs as e:return h(e)\n'
+#      "_macro_=__import__('types').SimpleNamespace()\n"
+#      "try:exec('from {}._macro_ import *',vars(_macro_))\n"
+#      'except ModuleNotFoundError:pass').format(
+#          MACRO_PACKAGE)
+
 prelude_code = \
-    ('from functools import partial,reduce\n'
-     'from itertools import *;from operator import *\n'
-     'def entuple(*xs):return xs\n'
-     'def enlist(*xs):return[*xs]\n'
-     'def enset(*xs):return{{*xs}}\n'
-     "def enfrost(*xs):return __import__('builtins').frozenset(xs)\n"
-     'def endict(*kvs):return{{k:i.__next__()for i in[kvs.__iter__()]for k in i}}\n'
-     "def enstr(*xs):return''.join(''.__class__(x)for x in xs)\n"
-     'def engarde(xs,h,f,/,*a,**kw):\n'
-     ' try:return f(*a,**kw)\n'
-     ' except xs as e:return h(e)\n'
-     "_macro_=__import__('types').SimpleNamespace()\n"
-     "try:exec('from {}._macro_ import *',vars(_macro_))\n"
-     'except ModuleNotFoundError:pass').format(
-         MACRO_PACKAGE)
+    ('from functools import partial, reduce\n'
+     'from itertools import *\n'
+     'from operator import *\n')
 
 
 def prelude():
@@ -60,20 +67,24 @@ def prelude():
 
     globals = inspect.stack()[1][0].f_globals
     exec(prelude_code, globals)
+    exec(all_macro_import_code, globals)
 
 
-def load_macro(module, macro_name, alias):
+def load_macro(module, macro_name, alias=None):
     """
     >>> from dhnamlib.hissplib.module import import_lissp
     >>> from dhnamlib.hissplib.macro import load_macro
-    >>> from dhnamlib.hissplib.compile import eval_lissp
+    >>> from dhnamlib.hissplib.compiler import eval_lissp
 
-    >>> hissplib_basic = import_lissp('dhnamlib.hissplib.basic')
-    >>> load_macro(hissplib_basic, 'el-let', 'let')
+    >>> lissplib_base = import_lissp('dhnamlib.hissplib.lissplib.base')
+    >>> load_macro(lissplib_base, 'el-let', 'let')
 
     >>> eval_lissp('(let ((x 10) (y 20)) (print x y))')
     10 20
     """
+    if alias is None:
+        alias = macro_name
+
     globals = inspect.stack()[1][0].f_globals
     if '_macro_' not in globals:
         globals['_macro_'] = __import__('types').SimpleNamespace()

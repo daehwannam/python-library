@@ -162,6 +162,18 @@ class Interface:
             "'{}' is abstract, so implement it rather than override".format(method.__name__)
         return method
 
+    def forbid(self, method):
+        "Forbid a method to be used."
+
+        assert self._existing_in_parents(method), \
+            "'{}' does not exist in parent classes".format(method.__name__)
+
+        @functools.wraps(method)
+        def new_method(*args, **kwargs):
+            raise Exception(f'The method "{method.__name__}" is forbidden.')
+
+        return new_method
+
     # method_or_func
     def _declared_as_abstract(self, method_or_func):
         return self.__declared_as_abstractmethod(method_or_func) or \
@@ -182,7 +194,8 @@ class Interface:
                        self.mro_classes))
 
     def __is_abstractmethod_in_parents(self, method):
-        return any(map(lambda cls: (isabstractmethod(getattr(cls, method.__name__))), self.parents))
+        return any(map(lambda cls: (hasattr(cls, method.__name__) and
+                                    isabstractmethod(getattr(cls, method.__name__))), self.parents))
 
     def __implemented_as_abstractmethod(self, method):
         return self.__declared_as_abstractmethod(method) and \
@@ -294,7 +307,7 @@ def subclass(cls):
     Example
 
     >>> from abc import ABCMeta, abstractmethod
-    >>>
+
     >>> class A(metaclass=ABCMeta):
     ...     @abstractmethod
     ...     def foo(self):
@@ -317,9 +330,20 @@ def subclass(cls):
     ...     def foo(self):
     ...         pass
 
+    >>> @subclass
+    ... class D(B):
+    ...     @forbid
+    ...     def bar(self):
+    ...         pass
+
+    >>> try:
+    ...     D().bar()
+    ... except Exception as e:
+    ...     print(repr(e))
+    Exception('The method "bar" is forbidden.')
     """
 
-    global _implemented_functions, _overriden_functions, _redeclared_functions
+    global _implemented_functions, _overriden_functions, _redeclared_functions, _forbidden_functions
 
     interface = Interface(*cls.__bases__)
 
@@ -347,6 +371,11 @@ def subclass(cls):
     # del _overriden_functions[:]
     _overriden_functions = []
 
+    for func in _forbidden_functions:
+        check_func_definition(func)
+        interface.forbid(func)
+    _forbidden_functions = []
+
     return cls
 
 
@@ -372,3 +401,21 @@ _overriden_functions = []
 def override(func):
     _overriden_functions.append(func)
     return func
+
+
+_forbidden_functions = []
+
+
+def forbid(func):
+    _forbidden_functions.append(func)
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        raise Exception(f'The method "{func.__name__}" is forbidden.')
+
+    return new_func
+
+
+def rename_class(cls, new_name):
+    cls.__name__ = new_name
+    cls.__qualname__ = new_name

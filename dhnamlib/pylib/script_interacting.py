@@ -2,7 +2,7 @@
 from code import InteractiveInterpreter, InteractiveConsole
 
 
-def interact_until_error(interpreter_cls=InteractiveInterpreter, banner=None, readfunc=None, local=None, exitmsg=None):
+def interact_with_interpreter(interpreter_cls=InteractiveInterpreter, banner=None, readfunc=None, local=None, exitmsg=None):
     """Closely emulate the interactive Python interpreter.
 
     This is a backwards compatible interface to the InteractiveInterpreter
@@ -60,25 +60,27 @@ def interact_with_script(file_path, banner=None, local=None, exitmsg=None, addin
                 empty_first_line_needed = False
                 line = ''
             else:
-                line = f.readline()  # All lines except the last end with "\n".
+                raw_line = f.readline()  # All lines except the last end with "\n".
 
-                if not line:
+                if not raw_line:
                     raise EOFError
-                elif not line.endswith('\n'):
+                elif raw_line.endswith('\n'):
+                    line = raw_line[:-1]
+                else:
                     # Note:
                     # If the last line of the file is not empty,
-                    # The line line can be code that does not end with "\n".
-                    line += '\n'
+                    # the code does not end with "\n".
+                    line = raw_line
 
             if line.strip():
                 print(prompt, end='')
-                print(line, end='')
+                print(line)
             else:
                 print()
 
             return line
 
-        interact_until_error(
+        interact_with_interpreter(
             interpreter_cls=ScriptInteractiveConsole,
             banner=banner if banner is not None else f'Started executing "{file_path}."\n',
             readfunc=readfunc,
