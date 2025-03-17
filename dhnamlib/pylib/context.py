@@ -9,38 +9,38 @@ from .lazy import LazyEval, eval_lazy_obj, get_eval_obj_unless_lazy
 from .decoration import deprecated
 from .klass import subclass, override  # , implement
 
-# Environment
+# Scope
 # modified from https://stackoverflow.com/a/2002140/6710003
 
-class Environment:
+class Scope:
     """
     Example:
 
     >>> # Set the default values
-    >>> env = Environment(a=100)
+    >>> scope = Scope(a=100)
     >>>
     >>> # Placeholders as default arguments
-    >>> # e.g. explicit naming -> env.ph.c / implicit naming -> env.ph
-    >>> @env
-    ... def func(u, w, x=env.ph.c, y=env.ph, z=env.ph):
+    >>> # e.g. explicit naming -> scope.ph.c / implicit naming -> scope.ph
+    >>> @scope
+    ... def func(u, w, x=scope.ph.c, y=scope.ph, z=scope.ph):
     ...     return u + w + x + y + z
     >>>
     >>> def my_sum(*args):
     ...    print('Calling my_sum')
     ...    return sum(args)
     >>>
-    >>> # Set values in a dynamic env
-    >>> with env(b=3, c=5, y=10, z=LazyEval(my_sum, 1, 2, 3, 4, 5)):
+    >>> # Set values in a dynamic scope
+    >>> with scope(b=3, c=5, y=10, z=LazyEval(my_sum, 1, 2, 3, 4, 5)):
     ...     print('Before the 1st function call')
-    ...     print(func(u=env.a, w=env.b))
+    ...     print(func(u=scope.a, w=scope.b))
     ...     print('Before the 2nd function call')
-    ...     print(func(u=env.a, w=env.b))
-    ...     # Override value fo 'a' in the inner env
-    ...     with env(a=1000):
+    ...     print(func(u=scope.a, w=scope.b))
+    ...     # Override value fo 'a' in the inner scope
+    ...     with scope(a=1000):
     ...         print('Before the 3rd function call')
-    ...         print(func(u=env.a, w=env.b))
+    ...         print(func(u=scope.a, w=scope.b))
     ...     print('Before the 4th function call')
-    ...     print(func(u=env.a, w=env.b))
+    ...     print(func(u=scope.a, w=scope.b))
     Before the 1st function call
     Calling my_sum
     133
@@ -51,18 +51,18 @@ class Environment:
     Before the 4th function call
     133
 
-    >>> env = Environment(a=100)
+    >>> scope = Scope(a=100)
     >>>
     >>> # placeholders with default values
-    >>> @env
-    ... def func(u, w, x=env.ph.c(5), y=env.ph(5), z=env.ph(LazyEval(my_sum, 1, 2, 3, 4, 5))):
+    >>> @scope
+    ... def func(u, w, x=scope.ph.c(5), y=scope.ph(5), z=scope.ph(LazyEval(my_sum, 1, 2, 3, 4, 5))):
     ...     return u + w + x + y + z
     >>>
-    >>> with env(b=3, y=10):
-    ...     # `env.y` is set to 10, so the default value of parameter `y` in `func` is not used
+    >>> with scope(b=3, y=10):
+    ...     # `scope.y` is set to 10, so the default value of parameter `y` in `func` is not used
     ...     # 100 + 3 + 5 + 10 + my_sum(1, 2, 3, 4, 5) == 33
-    ...     print(func(u=env.a, w=env.b))
-    ...     print(func(u=env.a, w=env.b))
+    ...     print(func(u=scope.a, w=scope.b))
+    ...     print(func(u=scope.a, w=scope.b))
     Calling my_sum
     133
     133
@@ -85,26 +85,26 @@ class Environment:
     def __getattr__(self, name):
         if name in self._reserved_names:
             raise Exception(_reserved_name_exceptoin_format_str.format(name=name))
-        for local_env in reversed(self._stack):
-            if name in local_env:
-                value = local_env[name]
+        for local_scope in reversed(self._stack):
+            if name in local_scope:
+                value = local_scope[name]
                 return eval_lazy_obj(value)
-        raise EnvironmentAttributeError(f'no such variable "{name}" in the local_env')
+        raise ScopeAttributeError(f'no such variable "{name}" in the local_scope')
 
     def __setattr__(self, name, value):
         if self._setattr_enabled:
             super().__setattr__(name, value)
         else:
-            # raise EnvironmentAttributeError("env variables can only be set by `with Environment.let()` or `Environment.update`")
-            raise EnvironmentAttributeError("Attributes can only be set by `with Environment.let()`")
+            # raise ScopeAttributeError("scope variables can only be set by `with Scope.let()` or `Scope.update`")
+            raise ScopeAttributeError("Attributes can only be set by `with Scope.let()`")
 
     def let(self, pairs=(), **kwargs):
-        # context manager for a dynamic env
+        # context manager for a dynamic scope
         for reserved_name in self._reserved_names:
             if reserved_name in kwargs:
                 raise Exception(_reserved_name_exceptoin_format_str.format(name=reserved_name))
 
-        return _EnvironmentBlock(self._stack, pairs, kwargs)
+        return _ScopeBlock(self._stack, pairs, kwargs)
 
     @deprecated
     def update(self, pairs=(), **kwargs):
@@ -113,15 +113,15 @@ class Environment:
     def items(self, lazy=True):
         eval_obj_unless_lazy = get_eval_obj_unless_lazy(lazy)
         keys = set()
-        for local_env in reversed(self._stack):
-            for key, value in local_env.items():
+        for local_scope in reversed(self._stack):
+            for key, value in local_scope.items():
                 if key not in keys:
                     keys.add(key)
                     yield key, eval_obj_unless_lazy(value)
 
     def __contains__(self, name):
-        for local_env in reversed(self._stack):
-            if name in local_env:
+        for local_scope in reversed(self._stack):
+            if name in local_scope:
                 return True
         else:
             return False
@@ -171,7 +171,7 @@ class Environment:
     def _is_placeholder(self, obj):
         return ((isinstance(obj, _Placeholder) or
                  isinstance(obj, _PlaceholderFactory)) and
-                obj.env is self)
+                obj.scope is self)
 
     def __call__(self, *args, **kwargs):
         if len(args) > 0:
@@ -186,14 +186,14 @@ class Environment:
             return self.let(**kwargs)
 
 
-class EnvironmentAttributeError(AttributeError):
+class ScopeAttributeError(AttributeError):
     pass
 
 
 _reserved_name_exceptoin_format_str = '"{name} is a reserved name'
 
 
-class _EnvironmentBlock:
+class _ScopeBlock:
     def __init__(self, stack, pairs, kwargs):
         self._stack = stack
         self._dict = dict(pairs, **kwargs)
@@ -206,14 +206,14 @@ class _EnvironmentBlock:
 
 
 class _PlaceholderFactory:
-    def __init__(self, env: Environment):
-        self.env = env
+    def __init__(self, scope: Scope):
+        self.scope = scope
 
     def __getattr__(self, name):
-        return _Placeholder(self.env, name)
+        return _Placeholder(self.scope, name)
 
     def __call__(self, default_value):
-        return _PlaceholderFactoryWithDefault(self.env, default_value)
+        return _PlaceholderFactoryWithDefault(self.scope, default_value)
 
 
 @subclass
@@ -221,25 +221,25 @@ class _PlaceholderFactoryWithDefault(_PlaceholderFactory):
     # interface = Interface(_PlaceholderFactory)
 
     @override
-    def __init__(self, env: Environment, default_value):
-        super().__init__(env)
+    def __init__(self, scope: Scope, default_value):
+        super().__init__(scope)
         self.default_value = default_value
 
     @override
     def __getattr__(self, name):
-        return _PlaceholderWithDefaultValue(self.env, name, self.default_value)
+        return _PlaceholderWithDefaultValue(self.scope, name, self.default_value)
 
 
 class _Placeholder:
-    def __init__(self, env, name):
-        self.env = env
+    def __init__(self, scope, name):
+        self.scope = scope
         self.name = name
 
     def get_value(self):
-        return self.env.__getattr__(self.name)
+        return self.scope.__getattr__(self.name)
 
     def __call__(self, default_value):
-        return _PlaceholderWithDefaultValue(self.env, self.name, default_value)
+        return _PlaceholderWithDefaultValue(self.scope, self.name, default_value)
 
 
 @subclass
@@ -247,15 +247,15 @@ class _PlaceholderWithDefaultValue(_Placeholder):
     # interface = Interface(_Placeholder)
 
     @override
-    def __init__(self, env, name, default_value):
-        super().__init__(env, name)
+    def __init__(self, scope, name, default_value):
+        super().__init__(scope, name)
         self.default_value = default_value
 
     @override
     def get_value(self):
         try:
             return super().get_value()
-        except EnvironmentAttributeError:
+        except ScopeAttributeError:
             return eval_lazy_obj(self.default_value)
 
 
