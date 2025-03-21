@@ -1,11 +1,17 @@
 
 import functools
 from typing import List, Callable
+from importlib.metadata import version
+from packaging.version import Version
 
 import torch
 from transformers import LogitsProcessor
+if Version(version('transformers')) >= Version('4.48.1'):
+    from transformers.generation.logits_process import LOGITS_PROCESSOR_INPUTS_DOCSTRING  # with "transformers==4.48.1"
+else:
+    from transformers.generation_logits_process import LOGITS_PROCESSOR_INPUTS_DOCSTRING  # with "transformers==4.16.2"
 from transformers.file_utils import add_start_docstrings
-from transformers.generation_logits_process import LOGITS_PROCESSOR_INPUTS_DOCSTRING
+
 
 from ..iteration import rcopy
 from ..decoration import deprecated
