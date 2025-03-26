@@ -1,6 +1,9 @@
 
 import heapq
 import math
+from itertools import chain
+from collections import deque
+
 from .constant import NO_VALUE
 
 
@@ -287,3 +290,92 @@ class PriorityCache:
     def __len__(self):
         assert len(self.cache) == len(self.pq)
         return len(self.cache)
+
+
+class FIFODict:
+    '''
+    Keep most recently updated key-value pairs
+
+    Example:
+
+    >>> dic = FIFODict(3)
+    >>> dic
+    FIFODict(max_size=3, {})
+    >>> dic['a'] = 1
+    >>> dic['b'] = 2
+    >>> dic['c'] = 3
+    >>> dic
+    FIFODict(max_size=3, {'a': 1, 'b': 2, 'c': 3})
+    >>> dic['a'] = 4
+    >>> dic
+    FIFODict(max_size=3, {'a': 4, 'b': 2, 'c': 3})
+    >>> dic['d'] = 5
+    >>> dic
+    FIFODict(max_size=3, {'a': 4, 'c': 3, 'd': 5})
+    >>> dic['e'] = 5
+    >>> dic
+    FIFODict(max_size=3, {'a': 4, 'd': 5, 'e': 5})
+
+    '''
+
+    # Unit = namedlist('Unit', 'key, value, valid')
+
+    KEY_INDEX = 0
+    VALUE_INDEX = 1
+    VALID_INDEX = 2
+
+    def __init__(self, max_size):
+        assert max_size > 0
+        self.q = deque()
+        self.unit_dict = {}
+        self.max_size = max_size
+        self.size = 0
+
+    def _update_kv(self, key, value):
+        if key in self.unit_dict:
+            # old unit is no more valid
+            self.unit_dict[key][self.VALID_INDEX] = False
+        elif self.size < self.max_size:
+            self.size += 1
+        else:
+            lr_unit = self.q.popleft()
+            while not lr_unit[self.VALID_INDEX]:
+                lr_unit = self.q.popleft()
+            # Remove a valid unit from unit_dict
+            del self.unit_dict[lr_unit[self.KEY_INDEX]]
+
+        unit = [key, value, True]
+        self.q.append(unit)
+        self.unit_dict[key] = unit
+
+        assert len(self.unit_dict) <= self.max_size
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __setitem__(self, key, value):
+        self._update_kv(key, value)
+
+    def __getitem__(self, key):
+        return self.unit_dict[key].value
+
+    def keys(self):
+        return self.unit_dict.keys()
+
+    def items(self):
+        for key, unit in self.unit_dict.items():
+            yield key, unit[self.VALUE_INDEX]
+
+    def values(self):
+        for unit in self.unit_dict.values():
+            yield unit[self.VALUE_INDEX]
+
+    def __contains__(self, key):
+        return key in self.unit_dict
+
+    def update(self, *args, **kwargs):
+        for key, value in chain(args, kwargs.items()):
+            self._update_kv(key, value)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(max_size={self.max_size}, {repr(dict(self.items()))})'

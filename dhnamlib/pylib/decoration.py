@@ -321,136 +321,6 @@ def file_cache(file_path_arg_name='file_cache_path', *, save_fn=None, load_fn=No
 fcache = file_cache(format=FILE_CACHE_DEFAULT_FORMAT)
 
 
-# Register
-class Register:
-    '''
-    Example
-    >>> register = Register(strategy='lazy')
-    >>> name_fn = register.retrieve('name-fn')
-    >>>
-    >>> @register('name-fn')
-    ... def full_name(first, last):
-    ...     return ' '.join([first, last])
-    >>>
-    >>> print(name_fn('John', 'Smith'))
-    John Smith
-    '''
-
-    STRATEGIES = ('instant', 'lazy', 'conditional')
-
-    def __init__(self, strategy='instant'):
-        assert strategy in self.STRATEGIES
-        self.strategy = strategy
-        self.memory = dict()
-
-    def _normalize_identifier(self, identifier):
-        if isinstance(identifier, list):
-            identifier = tuple(identifier)
-        return identifier
-
-    @curry
-    def __call__(self, identifier, obj):
-        identifier = self._normalize_identifier(identifier)
-
-        assert identifier not in self.memory, f'"{identifier}" is already registered.'
-        self.memory[identifier] = obj
-        return obj
-
-    # def __call__(self, identifier, func=None):
-    #     if func is None:
-    #         def decorator(func):
-    #             assert identifier not in self.memory
-    #             self.memory[identifier] = func
-    #             return func
-    #         return decorator
-    #     else:
-    #         assert identifier not in self.memory
-    #         self.memory[identifier] = func
-
-    def retrieve(self, identifier, strategy=None):
-        identifier = self._normalize_identifier(identifier)
-
-        if strategy is None:
-            strategy = self.strategy
-        else:
-            assert strategy in self.STRATEGIES
-
-        if (strategy == 'lazy') or (strategy == 'conditional' and identifier not in self.memory):
-            registered = LazyRegisterValue(self, identifier)
-        else:
-            assert strategy in ['instant', 'conditional']
-            registered = self.memory[identifier]
-
-        return registered
-
-    @staticmethod
-    def _msg_not_registered(identifier):
-        return f'"{identifier}" is not registered.'
-
-    def update(self, pairs, **kwargs):
-        _pairs = pairs.memory.items() if isinstance(pairs, Register) else pairs
-        self.memory.update(_pairs, **kwargs)
-
-    def items(self):
-        return self.memory.items()
-
-
-class MethodRegister(Register):
-    '''
-    Example:
-
-    >>> class User:
-    ...     method_register = MethodRegister()
-    ...
-    ...     def __init__(self, first_name, last_name):
-    ...         self.first_name = first_name
-    ...         self.last_name = last_name
-    ...         self.register = self.method_register.instantiate(self)
-    ...
-    ...     @method_register('full_name')
-    ...     def get_full_name(self):
-    ...         return f'{self.first_name} {self.last_name}'
-    ...
-    ...     @method_register('id')
-    ...     def get_id(self):
-    ...         return f'{self.first_name}-{self.last_name}'.lower()
-    ...
-    ...     def get(self, key):
-    ...         return self.register.retrieve(key)()
-
-    >>> user = User('John', 'Smith')
-    >>> user.get('id')
-    'john-smith'
-    '''
-
-    def instantiate(self, obj):
-        register = Register()
-        for key, value in self.items():
-            if hasattr(obj, value.__name__):
-                register(key, getattr(obj, value.__name__))
-            else:
-                register(key, value)
-        return register
-
-
-class LazyRegisterValue:
-    def __init__(self, register, identifier):
-        self.register = register
-        self.identifier = identifier
-
-    def get(self):
-        if self.identifier in self.register.memory:
-            return self.register.memory[self.identifier]
-        else:
-            raise Exception(Register._msg_not_registered(self.identifier))
-
-    def __call__(self, *args, **kwargs):
-        if self.identifier in self.register.memory:
-            return self.register.memory[self.identifier](*args, **kwargs)
-        else:
-            raise Exception(Register._msg_not_registered(self.identifier))
-
-
 @curry
 def construct(construct_fn, func, /, from_kwargs=False):
     '''
@@ -778,3 +648,23 @@ for func_name in ['__setitem__', '__getitem__', '__delitem__', '__contains__', '
 
 _IDHashing.__name__ = 'IDHashing'
 _IDHashing.__qualname__ = 'IDHashing'
+
+
+def hashasid(cls):
+    """
+    Hash as ID
+    """
+
+    def __eq__(self, other):
+        return self.__hash__() == other.__hash__()
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    assert hasattr(cls, '__hash__'), \
+        f'"__hash__" is not defined for the class "{cls.__name__}".'
+
+    cls.__eq__ = __eq__
+    cls.__ne__ = __ne__
+
+    return cls
