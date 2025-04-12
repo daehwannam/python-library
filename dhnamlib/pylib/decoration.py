@@ -164,45 +164,9 @@ def keyed_cache(key, func):
     return cached_func
 
 
-# class FIFOCallCache:
-#     def __init__(self, func, key=None, cache_size=None):
-#         self.func = func
-#         self.key = key or self.default_key_fn
-#         self.cache = NO_VALUE
-#         if cache_size is not None:
-#             self.initialize_cache(cache_size)
-
-#     def initialize_cache(self, cache_size):
-#         from .priority import FIFODict
-
-#         assert cache_size is not None
-#         assert self.cache is NO_VALUE, '"cache" is already initialized'
-
-#         self.cache = FIFODict(cache_size)
-
-#     @staticmethod
-#     def default_key_fn(*args, **kwargs):
-#         return tuple([args, tuple(kwargs.items())])
-
-#     @property
-#     def cache_size(self):
-#         return self.cache.max_size
-
-#     def __call__(self, *args, **kwargs):
-#         assert self.cache is not NO_VALUE
-
-#         key = self.key(*args, **kwargs)
-#         value = self.cache.get(key, NO_VALUE)
-#         if value is NO_VALUE:
-#             value = self.func(*args, **kwargs)
-#             self.cache[key] = value
-
-#         return value
-
-
-def fifo_cache(key=get_raw_key, maxsize=None):
+def keyed_fifo_cache(*, key=get_raw_key, maxsize):
     """
-    >>> @fifo_cache(key=lambda coll, target: (id(coll), target), maxsize=3)
+    >>> @keyed_fifo_cache(key=lambda coll, target: (id(coll), target), maxsize=3)
     ... def find(coll, target):
     ...     "Find an object and return its index."
     ...     for idx, elem in enumerate(coll):
@@ -259,7 +223,7 @@ def fifo_cache(key=get_raw_key, maxsize=None):
     return decorator
 
 
-def keyed_lru_cache(key=get_raw_key, maxsize=None):
+def keyed_lru_cache(*, key=get_raw_key, maxsize):
     """
     >>> @keyed_lru_cache(key=lambda coll, target: (id(coll), target), maxsize=3)
     ... def find(coll, target):
