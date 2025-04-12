@@ -87,3 +87,7 @@ def complement(func):
 def asserts(obj, fn):
     assert fn(obj)
     return obj
+
+
+def get_raw_key(*args, **kwargs):
+    return (args, tuple(kwargs.items()))

@@ -3,8 +3,11 @@ import heapq
 import math
 from itertools import chain
 from collections import deque
+from dataclasses import dataclass
+import typing
 
 from .constant import NO_VALUE
+from .doubly_linked_list import DoublyLinkedList, DoublyLinkedListNode
 
 
 class HeapPQ:
@@ -300,22 +303,27 @@ class FIFODict:
 
     >>> dic = FIFODict(3)
     >>> dic
-    FIFODict(max_size=3, {})
+    FIFODict(3, {})
     >>> dic['a'] = 1
     >>> dic['b'] = 2
     >>> dic['c'] = 3
     >>> dic
-    FIFODict(max_size=3, {'a': 1, 'b': 2, 'c': 3})
+    FIFODict(3, {'a': 1, 'b': 2, 'c': 3})
     >>> dic['a'] = 4
     >>> dic
-    FIFODict(max_size=3, {'a': 4, 'b': 2, 'c': 3})
+    FIFODict(3, {'a': 4, 'b': 2, 'c': 3})
     >>> dic['d'] = 5
     >>> dic
-    FIFODict(max_size=3, {'a': 4, 'c': 3, 'd': 5})
+    FIFODict(3, {'a': 4, 'c': 3, 'd': 5})
     >>> dic['e'] = 5
     >>> dic
-    FIFODict(max_size=3, {'a': 4, 'd': 5, 'e': 5})
-
+    FIFODict(3, {'a': 4, 'd': 5, 'e': 5})
+    >>> dic['a']
+    4
+    >>> dic.get('a')
+    4
+    >>> dic.get('c') is None
+    True
     '''
 
     # Unit = namedlist('Unit', 'key, value, valid')
@@ -357,7 +365,14 @@ class FIFODict:
         self._update_kv(key, value)
 
     def __getitem__(self, key):
-        return self.unit_dict[key].value
+        return self.unit_dict[key][self.VALUE_INDEX]
+
+    def get(self, key, default=None):
+        unit = self.unit_dict.get(key)
+        if unit is None:
+            return default
+        else:
+            return unit[self.VALUE_INDEX]
 
     def keys(self):
         return self.unit_dict.keys()
@@ -378,4 +393,124 @@ class FIFODict:
             self._update_kv(key, value)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(max_size={self.max_size}, {repr(dict(self.items()))})'
+        return f'{self.__class__.__name__}({self.max_size}, {repr(dict(self.items()))})'
+
+
+@dataclass
+class LRUDictUnit:
+    key: 'typing.Any'
+    value: 'typing.Any'
+    node: DoublyLinkedListNode
+
+    
+class LRUDict:
+    '''
+    Keep limited key-value pairs, and remove Least Recently Used (LRU) key-value pairs.
+
+    Example:
+
+    >>> dic = LRUDict(3)
+    >>> dic
+    LRUDict(3, {})
+
+    >>> dic['a'] = 1
+    >>> dic['b'] = 2
+    >>> dic['c'] = 3
+    >>> dic
+    LRUDict(3, {'a': 1, 'b': 2, 'c': 3})
+
+    >>> dic['a'] = 4
+    >>> dic
+    LRUDict(3, {'a': 4, 'b': 2, 'c': 3})
+
+    >>> dic['b'], dic['c']  # access without updating values
+    (2, 3)
+    >>> dic['d'] = 5
+    >>> dic
+    LRUDict(3, {'b': 2, 'c': 3, 'd': 5})
+
+    >>> dic['e'] = 6
+    >>> dic
+    LRUDict(3, {'c': 3, 'd': 5, 'e': 6})
+
+    >>> dic['d']
+    5
+
+    >>> dic.get('d')
+    5
+
+    >>> dic.get('a') is None
+    True
+    '''
+
+    # Unit = namedlist('Unit', 'key, value, valid')
+
+    KEY_INDEX = 0
+    VALUE_INDEX = 1
+    NODE_INDEX = 2
+
+    def __init__(self, max_size, /, *args, **kwargs):
+        assert max_size > 0
+        self.dll = DoublyLinkedList()
+        self.unit_dict = {}
+        self.max_size = max_size
+
+        for key, value in chain(args, kwargs.items()):
+            self._update_kv(key, value)
+
+    def _update_kv(self, key, value):
+        if key in self.unit_dict:
+            unit = self.unit_dict[key]
+            self.dll.send_node_to_rightmost(unit.node)
+            unit.value = value
+        else:
+            if len(self.unit_dict) >= self.max_size:
+                lru_unit = self.dll.popleft()
+                del self.unit_dict[lru_unit.key]
+
+            unit = LRUDictUnit(key, value, None)
+            self.dll.append(unit)
+            unit.node = self.dll.tail
+            self.unit_dict[key] = unit
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    # def __setitem__(self, key, value):
+    #     self._update_kv(key, value)
+
+    __setitem__ = _update_kv
+
+    def __getitem__(self, key):
+        # return self.unit_dict[key].value
+        unit = self.unit_dict[key]
+        self.dll.send_node_to_rightmost(unit.node)
+        return unit.value
+
+    def get(self, key, default=None):
+        unit = self.unit_dict.get(key)
+        if unit is None:
+            return default
+        else:
+            return unit.value
+
+    def keys(self):
+        return self.unit_dict.keys()
+
+    def items(self):
+        for key, unit in self.unit_dict.items():
+            yield key, unit.value
+
+    def values(self):
+        for unit in self.unit_dict.values():
+            yield unit.value
+
+    def __contains__(self, key):
+        return key in self.unit_dict
+
+    def update(self, *args, **kwargs):
+        for key, value in chain(args, kwargs.items()):
+            self._update_kv(key, value)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.max_size}, {repr(dict(self.items()))})'

@@ -1,10 +1,20 @@
 
+from abc import ABCMeta, abstractmethod
+
+from .klass import subclass, implement, override
 from .decoration import deprecated, curry
 from .function import identity
 from .constant import NO_VALUE
 
 
-class LazyEval:
+class LazyObject(metaclass=ABCMeta):
+    @abstractmethod
+    def _get_evaluated_obj(self):
+        pass
+
+
+@subclass
+class LazyEval(LazyObject):
     def __init__(self, fn, *args, **kwargs):
         self.fn = fn
         self.args = args
@@ -12,26 +22,28 @@ class LazyEval:
         self.evaluated = False
         self.obj = NO_VALUE
 
-    def get(self):
+    @implement
+    def _get_evaluated_obj(self):
         if not self.evaluated:
-            self._evaluate()
+            self._evaluate_and_set_obj()
 
         return self.obj
 
-    def evaluate(self):
-        self._evaluate()
+    def _evaluate_obj(self):
+        self._evaluate_and_set_obj()
         return self.obj
 
-    def _evaluate(self):
+    def _evaluate_and_set_obj(self):
         self.obj = self.fn(*self.args, **self.kwargs)
         self.evaluated = True
 
 
-def eval_lazy_obj(obj):
-    if isinstance(obj, LazyEval):
-        return obj.get()
-    else:
-        return obj
+def eval_lazy_obj(obj, recursive=False, lazy_object_cls=LazyObject):
+    while isinstance(obj, lazy_object_cls):
+        obj = obj._get_evaluated_obj()
+        if not recursive:
+            break
+    return obj
 
 
 @deprecated
@@ -42,6 +54,7 @@ def eval_obj_unless_lazy(obj, lazy):
         return eval_lazy_obj(obj)
 
 
+@deprecated
 def get_eval_obj_unless_lazy(lazy):
     if lazy:
         return identity
@@ -49,7 +62,8 @@ def get_eval_obj_unless_lazy(lazy):
         return eval_lazy_obj
 
 
-class LazyProxy:
+@subclass
+class LazyProxy(LazyObject):
     '''
     Example:
 
@@ -65,40 +79,71 @@ class LazyProxy:
     LazyProxy({'a': 10, 'b': 20, 'c': 30})
     '''
 
-    def __init__(self, fn, *args, **kwargs):
-        super().__setattr__('_lazy_obj', LazyEval(fn, *args, **kwargs))
-        # self._lazy_obj = LazyEval(fn, *args, **kwargs)
+    def _initialize(self, fn, *args, **kwargs):
+        # super().__setattr__('_lazy_obj', LazyEval(fn, *args, **kwargs))
+        self._lazy_obj = LazyEval(fn, *args, **kwargs)
+        self._evaluated_obj = NO_VALUE
 
-    def get_instance(self):
-        return self._lazy_obj.get()
+    def __init__(self, fn, *args, **kwargs):
+        self._initialize(fn, *args, **kwargs)
+        self.__setattr__ = self._setattr
+
+    @implement
+    def _get_evaluated_obj(self):
+        # return self._lazy_obj._get_evaluated_obj()
+        # return eval_lazy_obj(self.lazy_obj, recursive=True)
+        if self._evaluated_obj is NO_VALUE:
+            _evaluated_obj = eval_lazy_obj(
+                self._lazy_obj._get_evaluated_obj(),
+                recursive=True,
+                lazy_object_cls=LazyProxy
+            )
+            super().__setattr__('_evaluated_obj', _evaluated_obj)
+        return self._evaluated_obj
 
     def __getattr__(self, name):
-        return getattr(self.get_instance(), name)
+        return getattr(self._get_evaluated_obj(), name)
 
-    def __setattr__(self, name, value):
-        setattr(self.get_instance(), name, value)
+    # def __setattr__(self, name, value):
+    #     setattr(self._get_evaluated_obj(), name, value)
+
+    def _setattr(self, name, value):
+        setattr(self._get_evaluated_obj(), name, value)
 
     def __call__(self, *args, **kwargs):
-        return self.get_instance().__call__(*args, **kwargs)
+        return self._get_evaluated_obj().__call__(*args, **kwargs)
 
     def __repr__(self):
         # class_name = LazyProxy.__module__ + '.' + LazyProxy.__qualname__
-        return '{}({})'.format(self.__class__.__name__, repr(self.get_instance()))
+        return '{}({})'.format(self.__class__.__name__, repr(self._get_evaluated_obj()))
 
     def __getitem__(self, key):
-        return self.get_instance().__getitem__(key)
+        return self._get_evaluated_obj().__getitem__(key)
 
     def __setitem__(self, key, value):
-        self.get_instance().__setitem__(key, value)
+        self._get_evaluated_obj().__setitem__(key, value)
 
 
+@subclass
 class DynamicLazyProxy(LazyProxy):
     '''
-    It's same with LazyProxy except `get_instance` always evaluates the LazyEval object.
+    It's same with LazyProxy except `_get_evaluated_obj` always evaluates the LazyEval object.
     '''
 
-    def get_instance(self):
-        return self._lazy_obj.evaluate()
+    @override
+    def _initialize(self, fn, *args, **kwargs):
+        # super().__setattr__('_lazy_obj', LazyEval(fn, *args, **kwargs))
+        self._lazy_obj = LazyEval(fn, *args, **kwargs)
+        # self._evaluated_obj = NO_VALUE
+
+    @override
+    def _get_evaluated_obj(self):
+        _evaluated_obj = eval_lazy_obj(
+            self._lazy_obj._get_evaluated_obj(),
+            recursive=True,
+            lazy_object_cls=LazyProxy
+        )
+        return _evaluated_obj
 
 
 # Register
@@ -213,20 +258,20 @@ class MethodRegister(Register):
         return register
 
 
-class LazyRegisterValue:
+@subclass
+class LazyRegisterValue(LazyProxy):
+    def _initialize(self, register, identifier):
+        self._register = register
+        self._identifier = identifier
+        self._lazy_obj = LazyEval(self.__get_registered_obj)
+        self._evaluated_obj = NO_VALUE
+
     def __init__(self, register, identifier):
-        self.register = register
-        self.identifier = identifier
-        self._registered = NO_VALUE
+        self._initialize(register, identifier)
+        self.__setattr__ = self._setattr
 
-    def get(self):
-        if self._registered is NO_VALUE:
-            _registered = self.register.memory.get(self.identifier, NO_VALUE)
-            if _registered is NO_VALUE:
-                raise Exception(Register._msg_not_registered(self.identifier))
-            else:
-                self._registered = _registered
-        return self._registered
-
-    def __call__(self, *args, **kwargs):
-        return self.get()(*args, **kwargs)
+    def __get_registered_obj(self):
+        _registered = self._register.memory.get(self._identifier, NO_VALUE)
+        if _registered is NO_VALUE:
+            raise Exception(Register._msg_not_registered(self._identifier))
+        return _registered

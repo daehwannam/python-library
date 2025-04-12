@@ -4,9 +4,11 @@ import inspect
 import itertools
 import warnings
 from contextlib import ContextDecorator
+from abc import abstractmethod, ABCMeta
 
 from . import filesys
 from .constant import NO_VALUE
+from .function import get_raw_key
 
 
 def curry(func, *args, **kwargs):
@@ -161,6 +163,159 @@ def keyed_cache(key, func):
 
     return cached_func
 
+
+# class FIFOCallCache:
+#     def __init__(self, func, key=None, cache_size=None):
+#         self.func = func
+#         self.key = key or self.default_key_fn
+#         self.cache = NO_VALUE
+#         if cache_size is not None:
+#             self.initialize_cache(cache_size)
+
+#     def initialize_cache(self, cache_size):
+#         from .priority import FIFODict
+
+#         assert cache_size is not None
+#         assert self.cache is NO_VALUE, '"cache" is already initialized'
+
+#         self.cache = FIFODict(cache_size)
+
+#     @staticmethod
+#     def default_key_fn(*args, **kwargs):
+#         return tuple([args, tuple(kwargs.items())])
+
+#     @property
+#     def cache_size(self):
+#         return self.cache.max_size
+
+#     def __call__(self, *args, **kwargs):
+#         assert self.cache is not NO_VALUE
+
+#         key = self.key(*args, **kwargs)
+#         value = self.cache.get(key, NO_VALUE)
+#         if value is NO_VALUE:
+#             value = self.func(*args, **kwargs)
+#             self.cache[key] = value
+
+#         return value
+
+
+def fifo_cache(key=get_raw_key, maxsize=None):
+    """
+    >>> @fifo_cache(key=lambda coll, target: (id(coll), target), maxsize=3)
+    ... def find(coll, target):
+    ...     "Find an object and return its index."
+    ...     for idx, elem in enumerate(coll):
+    ...         if elem == target:
+    ...             return idx
+    ...     else:
+    ...         return None
+
+    >>> large_tuple = tuple(range(1, 101))
+    >>> find(large_tuple, 90)
+    89
+    >>> find(large_tuple, 27)
+    26
+    >>> find(large_tuple, 51)
+    50
+    >>> find(large_tuple, 95)
+    94
+    >>> find(large_tuple, 95)
+    94
+
+    >>> tuple(find.cache.values())
+    (26, 50, 94)
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def decorated(*args, **kwargs):
+            assert decorated.cache is not NO_VALUE, 'The attribute "cache" was not initialized. Use "initialize_cache".'
+
+            _key = key(*args, **kwargs)
+            value = decorated.cache.get(_key, NO_VALUE)
+            if value is NO_VALUE:
+                value = func(*args, **kwargs)
+                decorated.cache[_key] = value
+
+            return value
+
+        def initialize_cache(maxsize):
+            from .priority import FIFODict
+
+            assert maxsize is not None
+            assert decorated.cache is NO_VALUE, '"cache" is already initialized'
+
+            decorated.cache = FIFODict(maxsize)
+
+        decorated.cache = NO_VALUE
+        decorated.initialize_cache = initialize_cache
+
+        if maxsize is not None:
+            initialize_cache(maxsize)
+
+        return decorated
+
+    return decorator
+
+
+def keyed_lru_cache(key=get_raw_key, maxsize=None):
+    """
+    >>> @keyed_lru_cache(key=lambda coll, target: (id(coll), target), maxsize=3)
+    ... def find(coll, target):
+    ...     "Find an object and return its index."
+    ...     for idx, elem in enumerate(coll):
+    ...         if elem == target:
+    ...             return idx
+    ...     else:
+    ...         return None
+
+    >>> large_tuple = tuple(range(1, 101))
+    >>> find(large_tuple, 90)
+    89
+    >>> find(large_tuple, 27)
+    26
+    >>> find(large_tuple, 51)
+    50
+    >>> find(large_tuple, 95)
+    94
+    >>> find(large_tuple, 95)
+    94
+
+    >>> tuple(find.cache.values())
+    (26, 50, 94)
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def decorated(*args, **kwargs):
+            assert decorated.cache is not NO_VALUE, 'The attribute "cache" was not initialized. Use "initialize_cache".'
+
+            _key = key(*args, **kwargs)
+            value = decorated.cache.get(_key, NO_VALUE)
+            if value is NO_VALUE:
+                value = func(*args, **kwargs)
+                decorated.cache[_key] = value
+
+            return value
+
+        def initialize_cache(maxsize):
+            from .priority import LRUDict
+
+            assert maxsize is not None
+            assert decorated.cache is NO_VALUE, '"cache" is already initialized'
+
+            decorated.cache = LRUDict(maxsize)
+
+        decorated.cache = NO_VALUE
+        decorated.initialize_cache = initialize_cache
+
+        if maxsize is not None:
+            initialize_cache(maxsize)
+
+        return decorated
+
+    return decorator
 
 
 # def singleton(func):
@@ -668,3 +823,43 @@ def hashasid(cls):
     cls.__ne__ = __ne__
 
     return cls
+
+
+class MethodDecorator(metaclass=ABCMeta):
+    """
+    >>> class AsTuple(MethodDecorator):
+    ...     def __call__(self, *args, **kwargs):
+    ...         return tuple(self.func(*args, **kwargs))
+
+    >>> class WordSet:
+    ...     def __init__(self, words):
+    ...         self.words = words
+    ...     @AsTuple
+    ...     def get_words(self):
+    ...         return self.words
+
+    >>> word_set = WordSet(['cat', 'dot', 'bird'])
+    >>> print(word_set.get_words())  # '__get__', '_get_instantiated_call_fn', and '__call__' are executed in order.
+    ('cat', 'dot', 'bird')
+
+    """
+    def __init__(self, func):
+        self.func = func
+
+    @abstractmethod
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
+
+    def _get_instantiated_call_fn(self, instance):
+        @functools.wraps(self.func)
+        def call_fn_with_object(*args, **kwargs):
+            return self.__call__(instance, *args, **kwargs)
+
+        return call_fn_with_object
+
+    def __get__(self, instance, owner=None):
+        """Ensure that the method binds properly when accessed from an instance"""
+
+        if instance is None:
+            return self  # Accessed from the class, return the decorator itself
+        return self._get_instantiated_call_fn(instance)

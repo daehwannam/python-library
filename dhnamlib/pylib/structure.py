@@ -130,10 +130,15 @@ class LazyDict(dict):
     def get(self, key, default):
         return eval_lazy_obj(super().get(key, default))
 
-    def __items__(self, lazy=True):
-        eval_obj_unless_lazy = get_eval_obj_unless_lazy(lazy)
-        for key, value in super().__items__():
-            yield key, eval_obj_unless_lazy(value)
+    def items(self, lazy=True):
+        if lazy:
+            return super().items()
+        else:
+            return self._evaluated_items()
+
+    def _evaluated_items(self):
+        for key, value in super().items():
+            yield key, eval_lazy_obj(value)
 
     def values(self):
         return map(eval_lazy_obj, super().values())
