@@ -23,10 +23,15 @@ def iter_token_ids(tokenizer):
     return range(len(tokenizer))
 
 
+@deprecated
 def iter_tokens(tokenizer):
     for token in map(tokenizer.convert_ids_to_tokens, iter_token_ids(tokenizer)):
         assert token is not None
         yield token
+
+
+def get_all_tokens(tokenizer):
+    return tokenizer.convert_ids_to_tokens(iter_token_ids(tokenizer))
 
 
 def iter_id_token_pairs(tokenizer):
@@ -37,20 +42,82 @@ def iter_id_token_pairs(tokenizer):
         yield token_id, token
 
 
-def all_default_special_tokens(tokenizer):
-    # the output doesn't include added tokens
+def is_default_token(tokenizer, token):
+    token_id = tokenizer.convert_tokens_to_ids(token)
+    return is_default_token_id(tokenizer, token_id)
+
+
+def is_default_token_id(tokenizer, token_id):
+    return token_id < tokenizer.vocab_size
+
+
+def get_all_special_tokens(tokenizer):
     return tokenizer.all_special_tokens
 
 
-def iter_default_non_special_tokens(tokenizer):
-    # the output doesn't include added tokens
-    default_special_ids = set(tokenizer.all_special_ids)
-    for token_id in range(tokenizer.vocab_size):
-        if token_id not in default_special_ids:
-            special_token = tokenizer.convert_ids_to_tokens(token_id)
-            assert special_token is not None
-            assert isinstance(special_token, str)
+def get_all_special_token_ids(tokenizer):
+    return tokenizer.convert_tokens_to_ids(tokenizer.all_special_tokens)
+
+
+def iter_default_special_tokens(tokenizer):
+    '''
+    Iterate default special tokens which are not newly added.
+    '''
+    for special_token in tokenizer.all_special_tokens:
+        if is_default_token(tokenizer, special_token):
             yield special_token
+
+
+def iter_default_special_token_ids(tokenizer):
+    '''
+    Iterate IDs of default special tokens which are not newly added.
+    '''
+    for special_token_id in get_all_special_token_ids(tokenizer):
+        if is_default_token_id(tokenizer, special_token_id):
+            yield special_token_id
+
+
+def iter_default_non_special_tokens(tokenizer):
+    '''
+    Iterate default non-special tokens which are not newly added.
+    '''
+
+    # the output doesn't include added tokens
+    special_id_set = set(tokenizer.all_special_ids)
+    for token_id in range(tokenizer.vocab_size):
+        if token_id not in special_id_set:
+            token = tokenizer.convert_ids_to_tokens(token_id)
+            assert token is not None
+            assert isinstance(token, str)
+            yield token
+
+
+def iter_default_non_special_token_ids(tokenizer):
+    '''
+    Iterate IDs of default non-special tokens which are not newly added.
+    '''
+
+    special_id_set = set(tokenizer.all_special_ids)
+    for token_id in range(tokenizer.vocab_size):
+        if token_id not in special_id_set:
+            yield token_id
+
+
+def iter_non_special_tokens(tokenizer):
+    special_id_set = set(tokenizer.all_special_ids)
+    for token_id in range(len(tokenizer)):
+        if token_id not in special_id_set:
+            token = tokenizer.convert_ids_to_tokens(token_id)
+            assert token is not None
+            assert isinstance(token, str)
+            yield token
+
+
+def iter_non_special_token_ids(tokenizer):
+    special_id_set = set(tokenizer.all_special_ids)
+    for token_id in range(len(tokenizer)):
+        if token_id not in special_id_set:
+            yield token_id
 
 
 def join_tokens(
