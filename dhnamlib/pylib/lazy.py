@@ -46,6 +46,11 @@ def eval_lazy_obj(obj, recursive=False, lazy_object_cls=LazyObject):
     return obj
 
 
+def eval_lazy_obj_recursively(obj, lazy_object_cls=LazyObject):
+    return eval_lazy_obj(obj, recursive=True, lazy_object_cls=lazy_object_cls)
+
+
+
 @deprecated
 def eval_obj_unless_lazy(obj, lazy):
     if lazy:
@@ -207,6 +212,9 @@ class Register:
             registered = self.memory[identifier]
 
         return registered
+
+    def retrieve_instantly(self, identifier):
+        return self.retrieve(identifier, strategy='instant')
 
     @staticmethod
     def _msg_not_registered(identifier):
