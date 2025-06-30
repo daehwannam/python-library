@@ -6,7 +6,7 @@ from collections import deque
 from .function import identity
 from .constant import NO_VALUE
 from .exception import DuplicateValueError, NotFoundError
-from .typing import is_type
+from .typesys import is_type
 from .decoration import deprecated
 
 

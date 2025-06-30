@@ -90,6 +90,10 @@ class SequenceTrie:
 
         self._len -= 1
 
+    def update(self, seqs):
+        for seq in seqs:
+            self.add(seq)
+
     def _get_prefix_node(self, prefix):
         try:
             prefix_node, trace = self._trie._get_node(prefix)

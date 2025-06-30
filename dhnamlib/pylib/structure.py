@@ -471,14 +471,16 @@ def namedlist(typename, field_names):
     return NamedList
 
 
-class NameEnum(Enum):
+class _NameEnum(Enum):
     """
     Source: https://docs.python.org/3.9/library/enum.html#using-automatic-values
 
+    Limitation: a subclass of Enum cannot have its subclass.
+
     Example:
 
-    >>> class Ordinal(NameEnum):
-    ...     auto = NameEnum.auto
+    >>> class Ordinal(_NameEnum):
+    ...     auto = _NameEnum.auto
     ...
     ...     NORTH = auto()
     ...     SOUTH = auto()
@@ -494,3 +496,54 @@ class NameEnum(Enum):
     @staticmethod
     def auto():
         return enum_auto()
+
+
+class SetWrapper:
+    """
+    >>> s1 = {1, 2, 3}
+    >>> s2 = SetWrapper(s1)
+    >>> 3 in s2
+    True
+    """
+
+    def __init__(self, _set):
+        self._set = _set
+
+    def __contains__(self, elem):
+        return self._set.__contains__(elem)
+
+    def __iter__(self):
+        return self._set.__iter__()
+
+
+class DictWrapper:
+    """
+    >>> d1 = dict(a=10, b=20)
+    >>> d2 = DictWrapper(d1)
+    >>> d2['a']
+    10
+    """
+
+    def __init__(self, _dict):
+        self._dict = _dict
+
+    def __contains__(self, elem):
+        return self._dict.__contains__(elem)
+
+    def __iter__(self):
+        return self._dict.__iter__()
+
+    def keys(self):
+        return self._dict.keys()
+
+    def values(self):
+        return self._dict.values()
+
+    def items(self):
+        return self._dict.items()
+
+    def __getitem__(self, key):
+        return self._dict.__getitem__(key)
+
+    def get(self, key, default=None):
+        return self._dict.get(key, default)

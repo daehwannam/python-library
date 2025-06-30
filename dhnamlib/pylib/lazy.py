@@ -119,8 +119,11 @@ class LazyProxy(LazyObject):
         return self._get_evaluated_obj().__call__(*args, **kwargs)
 
     def __repr__(self):
-        # class_name = LazyProxy.__module__ + '.' + LazyProxy.__qualname__
-        return '{}({})'.format(self.__class__.__name__, repr(self._get_evaluated_obj()))
+        if self._evaluated_obj is NO_VALUE:
+            return '{}({})'.format(self.__class__.__name__, '<unevaluated>')
+        else:
+            # class_name = LazyProxy.__module__ + '.' + LazyProxy.__qualname__
+            return '{}({})'.format(self.__class__.__name__, repr(self._get_evaluated_obj()))
 
     def __getitem__(self, key):
         return self._get_evaluated_obj().__getitem__(key)
@@ -173,14 +176,14 @@ class Register:
         self.strategy = strategy
         self.memory = dict()
 
-    def _normalize_identifier(self, identifier):
-        if isinstance(identifier, list):
-            identifier = tuple(identifier)
-        return identifier
+    # def _normalize_identifier(self, identifier):
+    #     if isinstance(identifier, list):
+    #         identifier = tuple(identifier)
+    #     return identifier
 
     @curry
     def __call__(self, identifier, obj):
-        identifier = self._normalize_identifier(identifier)
+        # identifier = self._normalize_identifier(identifier)
 
         assert identifier not in self.memory, f'"{identifier}" is already registered.'
         self.memory[identifier] = obj
@@ -198,7 +201,7 @@ class Register:
     #         self.memory[identifier] = func
 
     def retrieve(self, identifier, strategy=None):
-        identifier = self._normalize_identifier(identifier)
+        # identifier = self._normalize_identifier(identifier)
 
         if strategy is None:
             strategy = self.strategy

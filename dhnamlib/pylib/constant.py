@@ -1,16 +1,23 @@
 
-class AbstractType:
+class AbstractObject:
     pass
 
 
-Abstract = AbstractType()
+Abstract = AbstractObject()
 
 
-class NoValueType:
+class NoValueObject:
     pass
 
 
-NO_VALUE = NoValueType()
+NO_VALUE = NoValueObject()
+
+
+class PlaceholderObject:
+    pass
+
+
+PLACEHOLDER = PlaceholderObject()
 
 
 def is_not_no_value(obj):

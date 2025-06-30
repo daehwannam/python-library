@@ -6,6 +6,7 @@ import warnings
 from contextlib import ContextDecorator
 from abc import abstractmethod, ABCMeta
 
+
 from . import filesys
 from .constant import NO_VALUE
 from .function import get_raw_key
@@ -280,6 +281,87 @@ def keyed_lru_cache(*, key=get_raw_key, maxsize):
         return decorated
 
     return decorator
+
+
+def _keyed_lru_cache(*, key=get_raw_key, maxsize):
+    """
+    >>> @_keyed_lru_cache(key=lambda coll, target: (id(coll), target), maxsize=3)
+    ... def find(coll, target):
+    ...     "Find an object and return its index."
+    ...     for idx, elem in enumerate(coll):
+    ...         if elem == target:
+    ...             return idx
+    ...     else:
+    ...         return None
+
+    >>> large_tuple = tuple(range(1, 101))
+    >>> find(large_tuple, 90)
+    89
+    >>> find(large_tuple, 27)
+    26
+    >>> find(large_tuple, 51)
+    50
+    >>> find(large_tuple, 95)
+    94
+    >>> find(large_tuple, 95)
+    94
+    """
+
+    def decorator(func):
+
+        @functools.lru_cache(maxsize)
+        def lru_cached(key_value):
+            (args, kwargs), _key_value = last_input_with_key.pop()
+            assert len(last_input_with_key) == 0
+            assert key_value is _key_value
+            return func(*args, **kwargs)
+
+        last_input_with_key = []
+
+        @functools.wraps(func)
+        def decorated(*args, **kwargs):
+            key_value = key(*args, **kwargs)
+
+            assert len(last_input_with_key) == 0
+            last_input_with_key.append(((args, kwargs), key_value))
+            return_value = lru_cached(key_value)
+            if len(last_input_with_key) > 0:
+                # when "return_value" is retrieved from the cache
+                last_input_with_key.pop()
+                assert len(last_input_with_key) == 0
+
+            return return_value
+
+        return decorated
+
+    return decorator
+
+
+def singleton_cache(func):
+    """
+    >>> from random import Random
+    >>> random = Random(42)
+
+    >>> @singleton_cache
+    ... def get_random_num():
+    ...     return random.randint(0, 100)
+
+    >>> get_random_num()
+    81
+    >>> get_random_num()
+    81
+    """
+
+    @functools.wraps(func)
+    def cached_func(*args, **kwargs):
+        if cached_func._cached_value is NO_VALUE:
+            cached_func._cached_value = func(*args, **kwargs)
+        return cached_func._cached_value
+
+    cached_func._cached_value = NO_VALUE
+
+    return cached_func
+
 
 
 # def singleton(func):
@@ -769,24 +851,78 @@ _IDHashing.__name__ = 'IDHashing'
 _IDHashing.__qualname__ = 'IDHashing'
 
 
-def hashasid(cls):
+def identifying(attribute=None, method=None, keep_eq=False, keep_hash=False):
     """
-    Hash as ID
+    Specify the identifier.
+
+    >>> @identifying('_identifier')
+    ... class Person:
+    ...     def __init__(self, first_name, last_name):
+    ...         self.first_name = first_name
+    ...         self.last_name = last_name
+    ...         self._identifier = (self.first_name, self.last_name)
+
+    >>> p1 = Person('John', 'Smith')
+    >>> p2 = Person('John', 'Smith')
+
+    >>> p1 == p2
+    True
+
+
+    >>> @identifying(method='get_identifier')
+    ... class Person:
+    ...     def __init__(self, first_name, last_name):
+    ...         self.first_name = first_name
+    ...         self.last_name = last_name
+    ...     def get_identifier(self):
+    ...         return (self.first_name, self.last_name)
+
+    >>> p1 = Person('John', 'Smith')
+    >>> p2 = Person('John', 'Smith')
+
+    >>> p1 == p2
+    True
     """
 
-    def __eq__(self, other):
-        return self.__hash__() == other.__hash__()
+    def decorator(cls):
+        if attribute is not None:
+            def __eq__(self, other):
+                return (self.__class__, getattr(self, attribute)) == (other.__class__, getattr(other, attribute))
+                # return getattr(self, attribute) == getattr(other, attribute)
 
-    def __ne__(self, other):
-        return not (self == other)
+            def __hash__(self):
+                # "functools.cache" cannot be used,
+                # because functools.cache computes the hash of "self" for caching
+                # then "__hash__" is called and it agains computes the hash recursively
+                if self._identifying_hash is NO_VALUE:
+                    self._identifying_hash = hash((self.__class__, getattr(self, attribute)))
+                return self._identifying_hash
 
-    assert hasattr(cls, '__hash__'), \
-        f'"__hash__" is not defined for the class "{cls.__name__}".'
+        else:
+            def __eq__(self, other):
+                return (self.__class__, getattr(self, method)()) == (other.__class__, getattr(other, method)())
+                # return getattr(self, method)() == getattr(other, method)()
 
-    cls.__eq__ = __eq__
-    cls.__ne__ = __ne__
+            # @functools.cache
+            def __hash__(self):
+                if self._identifying_hash is NO_VALUE:
+                    self._identifying_hash = hash((self.__class__, getattr(self, method)()))
+                return self._identifying_hash
 
-    return cls
+        def __ne__(self, other):
+            return not (self == other)
+
+        if not keep_eq:
+            cls.__eq__ = __eq__
+            cls.__ne__ = __ne__
+
+        if not keep_hash:
+            cls.__hash__ = __hash__
+            cls._identifying_hash = NO_VALUE
+
+        return cls
+
+    return decorator
 
 
 class MethodDecorator(metaclass=ABCMeta):
@@ -827,3 +963,98 @@ class MethodDecorator(metaclass=ABCMeta):
         if instance is None:
             return self  # Accessed from the class, return the decorator itself
         return self._get_instantiated_call_fn(instance)
+
+
+def attrenum(index_or_func):
+    """
+    >>> @attrenum
+    ... class Ordinal:
+    ...     NORTH = autoattr()
+    ...     SOUTH = autoattr()
+    ...     EAST = autoattr()
+    ...     WEST = autoattr()
+
+    >>> [Ordinal.NORTH, Ordinal.SOUTH, Ordinal.EAST, Ordinal.WEST]
+    [0, 1, 2, 3]
+
+    >>> @attrenum(2)
+    ... class Animal:
+    ...     DOG = autoattr()
+    ...     CAT = autoattr(4)
+    ...     MOUSE = autoattr()
+    ...     BIRD = autoattr()
+
+    >>> [Animal.DOG, Animal.CAT, Animal.MOUSE, Animal.BIRD]
+    [2, 4, 3, 5]
+
+    >>> @attrenum(2)
+    ... class MovingObject(Animal):
+    ...     CAR = autoattr()
+    ...     PLANE = autoattr(6)
+    ...     DRONE = autoattr()
+
+    >>> [MovingObject.CAR, MovingObject.PLANE, MovingObject.DRONE]
+    [7, 6, 8]
+
+    """
+
+    def decorator(cls):
+        if not hasattr(cls, '_enum_attr_to_identifier'):
+            assert not hasattr(cls, '_enum_identifier_to_attr')
+            cls._enum_attr_to_identifier = dict()
+            cls._enum_identifier_to_attr = dict()
+        used_identifiers = set(cls._enum_identifier_to_attr)
+
+        attr_obj_pairs = []
+        pre_registered_identifiers = set()
+
+        for attr, em_obj in vars(cls).items():
+            if isinstance(em_obj, AutoAttr):
+                if em_obj.identifier is not NO_VALUE:
+                    assert em_obj.identifier not in used_identifiers, \
+                        'The identifier {} is already used for {}.'.format(
+                            repr(em_obj.identifier),
+                            repr(cls._enum_identifier_to_attr[em_obj.identifier]))
+                    assert em_obj.identifier not in pre_registered_identifiers, \
+                        'The identifier {} is specified more than once.'.format(repr(em_obj.identifier))
+                    pre_registered_identifiers.add(em_obj.identifier)
+                attr_obj_pairs.append((attr, em_obj))
+
+        candidate_identifier = start_identifier
+        for attr, em_obj in attr_obj_pairs:
+            if em_obj.identifier is not NO_VALUE:
+                identifier = em_obj.identifier
+            else:
+                while (
+                        (candidate_identifier in used_identifiers) or
+                        (candidate_identifier in pre_registered_identifiers)
+                ):
+                    candidate_identifier += 1
+                identifier = candidate_identifier
+                candidate_identifier += 1
+
+            setattr(cls, attr, identifier)
+            cls._enum_attr_to_identifier[attr] = identifier
+            cls._enum_identifier_to_attr[identifier] = attr
+
+        # from dataclasses import dataclass
+        # return dataclass(frozen=True)(cls)
+
+        return cls
+
+    if isinstance(index_or_func, int):
+        start_identifier = index_or_func
+        return decorator
+    else:
+        cls = index_or_func
+        start_identifier = 0
+        return decorator(cls)
+
+
+class AutoAttr:
+    def __init__(self, identifier=NO_VALUE):
+        self.identifier = identifier
+
+
+attrenum.member = AutoAttr
+autoattr = AutoAttr

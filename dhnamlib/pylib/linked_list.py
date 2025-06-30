@@ -1,5 +1,6 @@
 
 import types
+from typing import Iterable, TypeVar, Generic, Sized, Tuple
 import functools
 from functools import reduce
 import itertools
@@ -8,62 +9,69 @@ from .decoration import deprecated
 
 # from .decoration import classproperty
 
-def llist(seq=None):
+T = TypeVar('T')                # Type
+
+KT = TypeVar('KT')              # Key Type
+VT = TypeVar('VT')              # Value Type
+
+
+def llist(seq: Iterable[T] = None) -> 'LeftwardList[T]':
     """
-    Create _LeftwardList
+    Create LeftwardList
     >>> llist()
     ()
     >>> llist([0, 1, 2, 3, 4])
     (0, 1, 2, 3, 4)
     """
-    if seq is None:
-        return _LeftwardList.create()
-    else:
-        return _LeftwardList.from_seq(seq)
+    ...
 
 
-def rlist(seq=None):
+def rlist(seq: Iterable[T] = None) -> 'RightwardList[T]':
     """
-    Create _RightwardList
+    Create RightwardList
     >>> rlist()
     ()
     >>> rlist([0, 1, 2, 3, 4])
     (0, 1, 2, 3, 4)
     """
-    if seq is None:
-        return _RightwardList.create()
-    else:
-        return _RightwardList.from_seq(seq)
+    ...
 
 
-def alist(pairs=None, **kwargs):
+def alist(pairs: Iterable[Tuple[KT, VT]] = None, **kwargs) -> 'AssociationList[KT, VT]':
     """
-    Create _AssociationList
+    Create AssociationList
     >>> alist()
     ()
     >>> alist([['a', 10], ['b', 20]], c=30, d=40)
     (('a', 10), ('b', 20), ('c', 30), ('d', 40))
     """
-    return _AssociationList.from_pairs(pairs, **kwargs)
+    ...
 
 
 def init_linked_list_class(cls):
-    cls.klass = cls
+    cls._klass = cls
 
     class NilList(cls):
         def __repr__(self):
             return '()'
 
-    cls.nil = NilList()
+    cls.nil = NilList(_private=_PRIVATE)
+
+    def NilList__init__(self, *args, **kwargs):
+        raise Exception('NilList.__init__ should not be called.')
+
+    NilList.__init__ = NilList__init__
 
     return cls
 
 
+_PRIVATE = object()
+
 @init_linked_list_class
-class _LinkedList(tuple):
+class LinkedList(tuple, Generic[T], Iterable[T], Sized):
     """
     >>> from dhnamlib.pylib.linked_list import *
-    >>> ll = _LinkedList.create(0, 1, 2, 3, 4)
+    >>> ll = LinkedList.from_elems(0, 1, 2, 3, 4)
     >>> ll
     (0, 1, 2, 3, 4)
     >>> ll.car()
@@ -75,13 +83,23 @@ class _LinkedList(tuple):
     """
     # https://stackoverflow.com/a/283630
 
-    # def __new__(cls, args=()):
-    #     return super(_LinkedList, cls).__new__(cls, tuple(args))
+    def __new__(cls, args=(), _private=None):
+        assert _private is _PRIVATE, \
+            f'{cls.__name__}.__init__ is a private method. Use {cls.__name__}.create instead.'
+        return tuple.__new__(cls, tuple(args))
 
     @classmethod
-    def create(cls, *args, leftward=True):
-        return reduce(lambda lst, el: cls((el, lst)),
-                      reversed(args) if leftward else args, cls.klass.nil)
+    def create(cls, seq=None, leftward=True):
+        if seq is None:
+            # return cls.from_elems()
+            return cls.nil
+        else:
+            return cls.from_seq(seq, leftward=leftward)
+
+    @classmethod
+    def from_elems(cls, *args, leftward=True):
+        return reduce(lambda lst, el: cls.cons(lst, el),
+                      reversed(args) if leftward else args, cls.nil)
 
     @classmethod
     def from_seq(cls, seq, leftward=True):
@@ -89,28 +107,29 @@ class _LinkedList(tuple):
             if isinstance(seq, types.GeneratorType):
                 seq = tuple(seq)
             seq = reversed(seq)
-        return reduce(lambda lst, el: cls((el, lst)), seq, cls.klass.nil)
+        return reduce(lambda lst, el: cls.cons(lst, el), seq, cls.nil)
 
     def cons(self, el):
-        return self.klass((el, self))
+        # return self.__class__((el, self))
+        return self._klass((el, self), _private=_PRIVATE)  # '_klass' is used to prevent the use of NilList.__init__
 
     # construct = cons
 
     def car(self):
-        return super(_LinkedList, self).__getitem__(0) if self.__bool__() else self
+        return super(LinkedList, self).__getitem__(0) if self.__bool__() else self
 
     # first = car
 
     def cdr(self):
-        return super(_LinkedList, self).__getitem__(1) if self.__bool__() else self
+        return super(LinkedList, self).__getitem__(1) if self.__bool__() else self
 
     rest = cdr
 
     def __bool__(self):
-        return self is not self.klass.nil
+        return self is not self.__class__.nil
 
     def null(self):
-        return self is self.klass.nil
+        return self is self.__class__.nil
 
     def decons(self):
         return self.car(), self.cdr()
@@ -158,9 +177,15 @@ class _LinkedList(tuple):
 
 
 @init_linked_list_class
-class _LeftwardList(_LinkedList):
+class LeftwardList(LinkedList[T], Generic[T]):
     """
+    >>> llist()
+    ()
+
     >>> ll = llist([0, 1, 2, 3, 4])
+    >>> ll
+    (0, 1, 2, 3, 4)
+
     >>> ll.first()
     0
     >>> ll.rest()
@@ -169,13 +194,19 @@ class _LeftwardList(_LinkedList):
     [0, 1, 2, 3, 4]
     """
 
-    first = _LinkedList.car
+    first = LinkedList.car
 
 
 @init_linked_list_class
-class _RightwardList(_LinkedList):
+class RightwardList(LinkedList[T], Generic[T]):
     """
+    >>> rlist()
+    ()
+
     >>> rl = rlist([0, 1, 2, 3, 4])
+    >>> rl
+    (0, 1, 2, 3, 4)
+
     >>> rl.last()
     4
     >>> rl.rest()
@@ -183,9 +214,14 @@ class _RightwardList(_LinkedList):
     >>> list(rl)
     [0, 1, 2, 3, 4]
     """
+
     @classmethod
-    def create(cls, *args, leftward=False):
-        return super().create(*args, leftward=leftward)
+    def create(cls, seq=None, leftward=False):
+        return super().create(seq, leftward=leftward)
+
+    @classmethod
+    def from_elems(cls, *args, leftward=False):
+        return super().from_elems(*args, leftward=leftward)
 
     @classmethod
     def from_seq(cls, seq, leftward=False):
@@ -203,14 +239,19 @@ class _RightwardList(_LinkedList):
             lst = lst.cdr()
 
     # def first(self):
-    #     raise Exception('"first" is not used for "_RightwardList". Use "last" instead')
+    #     raise Exception('"first" is not used for "RightwardList". Use "last" instead')
 
-    last = _LinkedList.car
+    last = LinkedList.car
 
 
 @init_linked_list_class
-class _AssociationList(_LinkedList):
+class AssociationList(LinkedList[Tuple[KT, VT]], Generic[KT, VT]):
     """
+    >>> alist()
+    ()
+    >>> alist([['a', 10], ['b', 20]], c=30, d=40)
+    (('a', 10), ('b', 20), ('c', 30), ('d', 40))
+
     >>> al = alist([['a', 10], ['b', 20], ['a', 25]], c=30, d=40)
     >>> al
     (('a', 10), ('b', 20), ('a', 25), ('c', 30), ('d', 40))
@@ -227,7 +268,7 @@ class _AssociationList(_LinkedList):
     def from_pairs(cls, pairs=None, **kwargs):
         if pairs is None:
             pairs = []
-        return super().create(*map(tuple, itertools.chain(pairs, kwargs.items())))
+        return super().from_elems(*map(tuple, itertools.chain(pairs, kwargs.items())))
 
     def assoc(self, attr_key, key=lambda x: x, defaultvalue=None, defaultfunc=None, no_default=False):
         assert sum(arg is not None for arg in [defaultvalue, defaultfunc]) <= 1
@@ -237,9 +278,9 @@ class _AssociationList(_LinkedList):
             if no_default:
                 raise Exception("Cannot find the correspodning key")
             elif defaultfunc is not None:
-                return defaultfunc()
+                pair = attr_key, defaultfunc()
             else:
-                return defaultvalue
+                pair = attr_key, defaultvalue
         return pair
 
     def get(self, attr_key, key=lambda x: x, defaultvalue=None, defaultfunc=None, no_default=False):
@@ -266,7 +307,7 @@ class _AssociationList(_LinkedList):
                     attr_keys.add(attr_key)
                     yield attr_key, val
 
-        return self.klass.create(*get_gen())
+        return self.__class__.from_elems(*get_gen())
 
     @deprecated
     @staticmethod
@@ -281,8 +322,12 @@ class _AssociationList(_LinkedList):
 
 
 # @init_linked_list_class
-# class AttrList(_AssociationList):
+# class AttrList(AssociationList):
 
 #     def __getattr__(self, attr):
 #         # https://stackoverflow.com/a/5021467
 #         return self.get(attr)
+
+llist = LeftwardList.create
+rlist = RightwardList.create
+alist = AssociationList.from_pairs

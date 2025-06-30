@@ -91,3 +91,8 @@ def asserts(obj, fn):
 
 def get_raw_key(*args, **kwargs):
     return (args, tuple(kwargs.items()))
+
+
+def newly_setitem(dic, key, value):
+    assert key not in dic
+    dic[key] = value

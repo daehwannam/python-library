@@ -208,7 +208,9 @@ class Interface:
                        self.mro_classes))
 
     def __is_abstractfunction_in_parents(self, function):
-        return any(map(lambda cls: (isabstractfunction(getattr(cls, function.__name__))), self.parents))
+        return any(map(
+            lambda cls: (hasattr(cls, function.__name__) and isabstractfunction(getattr(cls, function.__name__))),
+            self.parents))
 
     def __implemented_as_abstractfunction(self, function):
         return self.__declared_as_abstractfunction(function) and \
