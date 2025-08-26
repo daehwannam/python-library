@@ -98,11 +98,12 @@ key_regex = re.compile(r'{([^\s{}]+)}')
 def replace_keys(string, pairs, key_regex=key_regex):
     '''
     Replace keys.
+
+    Example:
+
     >>> replace_keys('f({name-1}, {name-2}) = {{name-1} + {name-2}}',
     ...              [['name-1', 'x'], ['name-2', 'y']])
     'f(x, y) = {x + y}'
-    Example:
-
     '''
     kv_dict = pairs if isinstance(pairs, dict) else dict(pairs)
     splits = []
@@ -151,3 +152,66 @@ def check_parens(string, paren_pairs):
             lparen, rparen = left_to_pair.get(paren) or right_to_pair.get(paren)
             assert paren_pair is not None
             raise Exception(f'The right parenthesis "{rparen}" is fewer than the left parenthesis "{lparen}"')
+
+
+def repr_with_args(obj, *args):
+    '''
+    >>> class Person:
+    ...     def __init__(self, first_name, last_name):
+    ...         self.first_name = first_name
+    ...         self.last_name = last_name
+    ...         self._identifier = (self.first_name, self.last_name)
+    ...     def __repr__(self):
+    ...         return repr_with_args(self, self.first_name, self.last_name)
+
+    >>> person = Person('John', 'Smith')
+    >>> person
+    Person('John', 'Smith')
+    '''
+
+    return '{}({})'.format(
+        obj.__class__.__name__,
+        ', '.join(f'{repr(arg)}' for arg in args)
+    )
+
+
+def repr_with_kwargs(obj, **kwargs):
+    '''
+    >>> class Person:
+    ...     def __init__(self, first_name, last_name):
+    ...         self.first_name = first_name
+    ...         self.last_name = last_name
+    ...         self._identifier = (self.first_name, self.last_name)
+    ...     def __repr__(self):
+    ...         return repr_with_kwargs(self, first_name=self.first_name, last_name=self.last_name)
+
+    >>> person = Person('John', 'Smith')
+    >>> person
+    Person(first_name='John', last_name='Smith')
+    '''
+
+    return '{}({})'.format(
+        obj.__class__.__name__,
+        ', '.join(f'{k}={repr(v)}' for k, v in kwargs.items())
+    )
+
+
+def repr_with_attrs(obj, attrs):
+    '''
+    >>> class Person:
+    ...     def __init__(self, first_name, last_name):
+    ...         self.first_name = first_name
+    ...         self.last_name = last_name
+    ...         self._identifier = (self.first_name, self.last_name)
+    ...     def __repr__(self):
+    ...         return repr_with_attrs(self, ['first_name', 'last_name'])
+
+    >>> person = Person('John', 'Smith')
+    >>> person
+    Person(first_name='John', last_name='Smith')
+    '''
+
+    return '{}({})'.format(
+        obj.__class__.__name__,
+        ', '.join(f'{attr}={repr(getattr(obj, attr))}' for attr in attrs)
+    )
