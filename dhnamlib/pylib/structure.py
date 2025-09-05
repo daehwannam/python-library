@@ -10,7 +10,7 @@ from .exception import DuplicateValueError
 from .lazy import LazyEval, eval_lazy_obj, get_eval_obj_unless_lazy
 from .decoration import id_cache
 from .constant import NO_VALUE
-from .text import camel_to_symbol
+from .text import camel_to_symbol, repr_with_args
 
 
 class AttrDict(dict):
@@ -515,6 +515,9 @@ class SetWrapper:
     def __iter__(self):
         return self._set.__iter__()
 
+    def __repr__(self):
+        return repr_with_args(self, self._set)
+
 
 class DictWrapper:
     """
@@ -547,3 +550,6 @@ class DictWrapper:
 
     def get(self, key, default=None):
         return self._dict.get(key, default)
+
+    def __repr__(self):
+        return repr_with_args(self, self._dict)
