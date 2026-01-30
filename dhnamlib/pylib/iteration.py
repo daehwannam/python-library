@@ -1155,3 +1155,29 @@ def iterfirstk(sequence, k):
         yield next(iterator)
 
 
+def dichotomize(function, iterable):
+    '''
+    Example:
+
+    >>> from random import Random
+    >>> random = Random(42)
+
+    >>> random_odd_nums, random_even_nums = dichotomize(
+    ...     lambda x: (x % 2 == 1),
+    ...     (random.randint(0, 10000) for x in range(5)))
+
+    >>> random_odd_nums
+    [409, 3657]
+    >>> random_even_nums
+    [1824, 4506, 4012]
+    '''
+    true_elems = []
+    false_elems = []
+
+    for elem in iterable:
+        if function(elem):
+            true_elems.append(elem)
+        else:
+            false_elems.append(elem)
+
+    return true_elems, false_elems

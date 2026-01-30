@@ -96,3 +96,17 @@ def get_raw_key(*args, **kwargs):
 def newly_setitem(dic, key, value):
     assert key not in dic
     dic[key] = value
+
+
+def set_add(_set, added_elem):
+    old_size = len(_set)
+    _set.add(added_elem)
+    updated = len(_set) > old_size
+    return updated
+
+
+def set_update(_set, added_coll):
+    old_size = len(_set)
+    _set.update(added_coll)
+    updated = len(_set) > old_size
+    return updated

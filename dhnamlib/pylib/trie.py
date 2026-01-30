@@ -1,5 +1,5 @@
 
-from itertools import chain
+from itertools import chain, repeat
 import reprlib
 
 # from dhnamlib.pylib.heap import PriorityCache
@@ -8,13 +8,15 @@ import reprlib
 import pygtrie
 from pygtrie import _NoChildren, _OneChild, _Children
 
+from .structure import SetWrapper
+
 
 # This code is tested with pygtrie==2.5.0 .
 
 
-class SequenceTrie:
+class EndableSetTrie:
     """
-    >>> trie = SequenceTrie(
+    >>> trie = EndableSetTrie(
     ...     [[0],
     ...      [1],
     ...      [2],
@@ -25,7 +27,7 @@ class SequenceTrie:
     ...      [0, 1, 2, 3, 5, 6],
     ...      [0, 1, 2, 3, 5, 7]])
     >>> trie
-    {(2,), (0, 1, 4), (0, 1, 2), (0, 1, 3), (0, 1, 2, 3, 5, 7), (1,), (0, 1, 2, 3, 5, 6), (0,), (0, 1, 2, 3, 4)}
+    {(2,), (0, 1, 4), (0, 1, 2), (0, 1, 3), (0, 1, 2, 3, 5, 7), (1,), (0, 1, 2, 3, 5, 6), (0,), (0, 1, 2, 3, 4)}  # doctest: +SKIP
 
     >>> list(trie.endable_elems([0, 1]))
     [2, 3, 4]
@@ -127,6 +129,12 @@ class SequenceTrie:
         prefix_node, trace = self._get_prefix_node(prefix)
         return iter(self._get_continuable_elem_dict(prefix_node))
 
+    # def reachable_elems(self, prefix):
+    #     prefix_node, trace = self._get_prefix_node(prefix)
+    #     return chain(
+    #         self._get_endable_elem_set(prefix_node),
+    #         self._get_continuable_elem_dict(prefix_node))
+
     # def _endable_elems_from_node(self, node):
     #     if isinstance(node.value, set):
     #         return iter(node.value)
@@ -147,6 +155,11 @@ class SequenceTrie:
         continuable_elem_dict = self._get_continuable_elem_dict(prefix_node)
         return len(continuable_elem_dict) > 0
 
+    # def has_reachable_elem(self, prefix):
+    #     prefix_node, trace = self._get_prefix_node(prefix)
+    #     return (len(self._get_endable_elem_set(prefix_node)) > 0) or \
+    #         (len(self._get_continuable_elem_dict(prefix_node)) > 0)
+
     def is_endable_elem(self, prefix, last_elem):
         prefix_node, trace = self._get_prefix_node(prefix)
         endable_elem_set = self._get_endable_elem_set(prefix_node)
@@ -157,8 +170,13 @@ class SequenceTrie:
         continuable_elem_dict = self._get_continuable_elem_dict(prefix_node)
         return last_elem in continuable_elem_dict
 
-    def elems(self, prefix):
-        return chain(self.endable_elems(), self.continuable_elems())
+    # def is_reachable_elem(self, prefix, last_elem):
+    #     prefix_node, trace = self._get_prefix_node(prefix)
+    #     return (last_elem in self._get_endable_elem_set(prefix_node)) or \
+    #         (last_elem in self._get_continuable_elem_dict(prefix_node))
+
+    # def elems(self, prefix):
+    #     return chain(self.endable_elems(), self.continuable_elems())
 
     def __repr__(self):
         return reprlib.repr(set(self))
@@ -201,3 +219,85 @@ class SequenceTrie:
             return (endable_elems, sub_content)
 
         return get_content(self._trie._root)
+
+
+class SequenceTrie:
+    """
+    >>> trie = SequenceTrie(
+    ...     [[0, 1, 2],
+    ...      [0, 1, 3],
+    ...      [0, 1, 4],
+    ...      [0, 1, 2, 3, 4],
+    ...      [0, 1, 2, 3, 5, 6],
+    ...      [0, 1, 2, 3, 5, 7]])
+    >>> trie
+    {(0, 1, 4), (0, 1, 3), (0, 1, 2, 3, 5, 7), (0, 1, 2, 3, 5, 6), (0, 1, 2), (0, 1, 2, 3, 4)}
+
+    >>> trie.get_elem_set([0, 1])
+    SetWrapper({2, 3, 4})
+    >>> trie.get_elem_set([0, 1, 2, 3])
+    SetWrapper({4, 5})
+    >>> trie.get_elem_set([0, 1, 2, 3, 5])
+    SetWrapper({6, 7})
+
+    """
+
+    def __init__(self, seqs):
+        self._trie = pygtrie.Trie(zip(seqs, repeat(True)))
+
+    def add(self, seq):
+        self._trie[seq] = True
+
+    # def __delitem__(self, seq):
+    #     del self._trie[seq]
+
+    def remove(self, seq):
+        del self._trie[seq]
+
+    def update(self, seqs):
+        for seq in seqs:
+            self.add(seq)
+
+    def _get_prefix_node(self, prefix):
+        try:
+            prefix_node, trace = self._trie._get_node(prefix)
+        except KeyError:
+            raise KeyError(f'Unknown prefix {repr(prefix)}') from None
+        return prefix_node, trace
+
+    def _get_elem_dict_from_prefix_node(self, prefix_node):
+        # prefix_node, trace = self._get_prefix_node(prefix)
+        children = prefix_node.children
+        if isinstance(children, _NoChildren):
+            return {}
+        elif isinstance(children, _OneChild):
+            return {children.step: children.node}
+        else:
+            assert isinstance(children, _Children)
+            return children
+
+    def get_elem_set(self, prefix):
+        prefix_node, trace = self._get_prefix_node(prefix)
+        return SetWrapper(self._get_elem_dict_from_prefix_node(prefix_node))
+
+    def elems(self, prefix):
+        prefix_node, trace = self._get_prefix_node(prefix)
+        return iter(self._get_elem_dict_from_prefix_node(prefix_node))
+
+    def __repr__(self):
+        return set(self._trie).__repr__()
+
+    def __len__(self):
+        return self._trie.__len__()
+
+    def __contains__(self, seq):
+        return self._trie.__contains__(seq)
+
+    def __iter__(self):
+        return self._trie.__iter__()
+
+    def __eq__(self, other):
+        return self._trie == other._trie
+
+    def __ne__(self, other):
+        return self != other

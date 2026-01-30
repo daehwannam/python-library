@@ -89,6 +89,65 @@ def curry(func, *args, **kwargs):
     return make_curried(args, kwargs)
 
 
+def deprecated(func_or_class):
+    if isinstance(func_or_class, type):
+        class NewClass(func_or_class):
+            def __init__(self, *args, **kwargs):
+                warnings.warn('Deprecated class {} is instantiated.'.format(func_or_class.__name__),
+                              DeprecationWarning)
+                return super().__init__(*args, **kwargs)
+
+        # from . import klass
+        # klass.rename_class(NewClass, func_or_class.__name__)
+
+        def rename_class(cls, new_name):
+            cls.__name__ = new_name
+            cls.__qualname__ = new_name
+
+        rename_class(NewClass, func_or_class.__name__)
+
+        return NewClass
+    else:
+        @functools.wraps(func_or_class)
+        def new_func_or_class(*args, **kwargs):
+            # https://docs.python.org/3/library/warnings.html
+            warnings.warn('Deprecated function {} is called.'.format(func_or_class.__name__),
+                          DeprecationWarning)
+            return func_or_class(*args, **kwargs)
+
+        return new_func_or_class
+
+
+def unnecessary(func):
+    called = False
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        nonlocal called
+        if not called:
+            called = True
+            print("Unneccessary function {} is called.".format(func.__name__))
+        return func(*args, **kwargs)
+
+    return new_func
+
+
+def notimplemented(func):
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        raise NotImplementedError(f'The function "{func.__name__}" is not implemented')
+
+    return new_func
+
+
+def prohibit(func):
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        raise Exception(f'The function "{func.__name__}" is prohibited')
+
+    return new_func
+
+
 # def _cache(func):
 #     """keep a cache of previous function calls.
 #     it's similar to functools.lru_cache"""
@@ -337,6 +396,7 @@ def _keyed_lru_cache(*, key=get_raw_key, maxsize):
     return decorator
 
 
+@deprecated
 def singleton_cache(func):
     """
     >>> from random import Random
@@ -363,78 +423,31 @@ def singleton_cache(func):
     return cached_func
 
 
+def called_once_only(func):
+    """
+    >>> @called_once_only
+    ... def sum_numbers(numbers):
+    ...     return sum(numbers)
 
-# def singleton(func):
-#     @functools.wraps(func)
-#     def decorated_func(*args, **kwargs):
-#         if decorated_func.singleton is None:
-#             decorated_func.singleton = func(*args, **kwargs)
-#         else:
-#             raise Exception('This function is already evaluated.')
-#         return decorated_func.singleton
-
-#     decorated_func.singleton = None
-
-#     return decorated_func
-
-
-def deprecated(func_or_class):
-    if isinstance(func_or_class, type):
-        class NewClass(func_or_class):
-            def __init__(self, *args, **kwargs):
-                warnings.warn('Deprecated class {} is instantiated.'.format(func_or_class.__name__),
-                              DeprecationWarning)
-                return super().__init__(*args, **kwargs)
-
-        # from . import klass
-        # klass.rename_class(NewClass, func_or_class.__name__)
-
-        def rename_class(cls, new_name):
-            cls.__name__ = new_name
-            cls.__qualname__ = new_name
-
-        rename_class(NewClass, func_or_class.__name__)
-
-        return NewClass
-    else:
-        @functools.wraps(func_or_class)
-        def new_func_or_class(*args, **kwargs):
-            # https://docs.python.org/3/library/warnings.html
-            warnings.warn('Deprecated function {} is called.'.format(func_or_class.__name__),
-                          DeprecationWarning)
-            return func_or_class(*args, **kwargs)
-
-        return new_func_or_class
-
-
-def unnecessary(func):
-    called = False
+    >>> numbers = tuple(range(100))
+    >>> sum = sum_numbers(numbers)
+    >>> sum = sum_numbers(numbers)
+    Traceback (most recent call last):
+      ...
+    Exception: This function is already called.
+    """
 
     @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        nonlocal called
-        if not called:
-            called = True
-            print("Unneccessary function {} is called.".format(func.__name__))
-        return func(*args, **kwargs)
+    def decorated_func(*args, **kwargs):
+        if decorated_func._called_once_only__called_already:
+            raise Exception('This function is already called.')
+        else:
+            decorated_func._called_once_only__called_already = True
+            return func(*args, **kwargs)
 
-    return new_func
+    decorated_func._called_once_only__called_already = False
 
-
-def notimplemented(func):
-    @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        raise NotImplementedError(f'The function "{func.__name__}" is not implemented')
-
-    return new_func
-
-
-def prohibit(func):
-    @functools.wraps(func)
-    def new_func(*args, **kwargs):
-        raise Exception(f'The function "{func.__name__}" is prohibited')
-
-    return new_func
+    return decorated_func
 
 
 # def load_after_save(file_path_arg_name, *, load_func, save_func):

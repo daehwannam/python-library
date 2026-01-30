@@ -7,6 +7,7 @@ import signal
 from contextlib import contextmanager
 import linecache
 import inspect
+import traceback
 
 from . import decoration
 from . import iteration
@@ -306,3 +307,49 @@ def NIE(msg=None):
 
     args = (msg,) if msg is not None else ()
     raise NotImplementedError(*args)
+
+
+def get_recursion_error_stack_info(exc_tb=None):
+    """
+    Return the (function_name, args) list from Traceback.
+
+    >>> def test(n):
+    ...     if n == 0:
+    ...         return test(1)      # Infinite recursion
+    ...     return test(n + 1)
+
+    >>> try:
+    ...     test(0)
+    ... except RecursionError as e:
+    ...     stack_info = get_recursion_error_stack_info()
+    ...     for frame_info in stack_info[-10:]:  # Top 10 stack frames
+    ...         print(frame_info)  # doctest: +SKIP
+    {'fname': 'test', 'args': {'n': 978}}  # doctest: +SKIP
+    {'fname': 'test', 'args': {'n': 979}}  # doctest: +SKIP
+    {'fname': 'test', 'args': {'n': 980}}  # doctest: +SKIP
+    {'fname': 'test', 'args': {'n': 981}}  # doctest: +SKIP
+    {'fname': 'test', 'args': {'n': 982}}  # doctest: +SKIP
+    {'fname': 'test', 'args': {'n': 983}}  # doctest: +SKIP
+    {'fname': 'test', 'args': {'n': 984}}  # doctest: +SKIP
+    {'fname': 'test', 'args': {'n': 985}}  # doctest: +SKIP
+    {'fname': 'test', 'args': {'n': 986}}  # doctest: +SKIP
+    {'fname': 'test', 'args': {'n': 987}}  # doctest: +SKIP
+
+    >>> print('Above are top stack frames.')
+    Above are top stack frames.
+    """
+    if exc_tb is None:
+        exc_type, exc_value, exc_tb = traceback.sys.exc_info()
+
+    frame_info_list = []
+    while exc_tb is not None:
+        frame = exc_tb.tb_frame
+        code = frame.f_code
+        func_name = code.co_name
+
+        args = frame.f_locals.copy()
+
+        frame_info_list.append(dict(fname=func_name, args=args))
+        exc_tb = exc_tb.tb_next
+
+    return frame_info_list

@@ -500,10 +500,23 @@ class _NameEnum(Enum):
 
 class SetWrapper:
     """
-    >>> s1 = {1, 2, 3}
-    >>> s2 = SetWrapper(s1)
-    >>> 3 in s2
+    >>> dic = {3: '3', 4: '4', 5: '5'}
+    >>> s = SetWrapper(dic)
+
+    >>> tuple(s)
+    (3, 4, 5)
+
+    >>> 1 in s
+    False
+
+    >>> 3 in s
     True
+
+    >>> 5 in s
+    True
+
+    >>> 7 in s
+    False
     """
 
     def __init__(self, _set):
@@ -515,8 +528,58 @@ class SetWrapper:
     def __iter__(self):
         return self._set.__iter__()
 
+    def __len__(self):
+        return self._set.__len__()
+
     def __repr__(self):
-        return repr_with_args(self, self._set)
+        # return repr_with_args(self, *self._sets)
+        return repr_with_args(self, set(self))
+
+
+class MultiSetWrapper:
+    """
+    >>> s1 = {1, 2, 3}
+    >>> s2 = {3: '3', 4: '4', 5: '5'}
+    >>> s3 = MultiSetWrapper(s1, s2)
+
+    >>> tuple(s3)
+    (1, 2, 3, 4, 5)
+
+    >>> 1 in s3
+    True
+
+    >>> 3 in s3
+    True
+
+    >>> 5 in s3
+    True
+
+    >>> 7 in s3
+    False
+    """
+
+    def __init__(self, *_sets):
+        self._sets = _sets
+
+    def __contains__(self, elem):
+        return any(_set.__contains__(elem) for _set in self._sets)
+
+    def __iter__(self):
+        warnings.warn("'__iter__' is deprecated.")
+
+        if len(self._sets) == 1:
+            [_set] = self._sets
+            yield from _set
+        else:
+            used = set()
+            for elem in chain.from_iterable(self._sets):
+                if elem not in used:
+                    used.add(elem)
+                    yield elem
+
+    def __repr__(self):
+        # return repr_with_args(self, *self._sets)
+        return repr_with_args(self, set(self))
 
 
 class DictWrapper:
@@ -535,6 +598,9 @@ class DictWrapper:
 
     def __iter__(self):
         return self._dict.__iter__()
+
+    def __len__(self):
+        return self._dict.__len__()
 
     def keys(self):
         return self._dict.keys()
