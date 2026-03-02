@@ -213,6 +213,22 @@ def filter_dict_values(fn, dic):
     return _filter_pair_values(fn, dic.items())
 
 
+def nonidentical(objects):
+    '''
+    >>> large_tuple1 = tuple(range(1000))
+    >>> large_tuple2 = tuple(range(1000))
+    >>> objects = list(nonidentical([large_tuple1, large_tuple1, large_tuple2, large_tuple2, large_tuple2]))
+    >>> len(objects)
+    2
+    '''
+
+    id_set = set()
+    for obj in objects:
+        if id(obj) not in id_set:
+            id_set.add(id(obj))
+            yield obj
+
+
 def not_none_valued_pairs(pairs=(), **kwargs):
     '''
     Example:
